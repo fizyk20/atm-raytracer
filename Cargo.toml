@@ -1,0 +1,11 @@
+[package]
+name = "atm-raytracer"
+version = "0.1.0"
+authors = ["Bartłomiej Kamiński <fizyk20@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+atm-refraction = { path = "../atm-refraction" }
+dted = { path = "../dted" }
+clap = "2.0"
+rayon = "1.0"
