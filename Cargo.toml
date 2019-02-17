@@ -8,4 +8,5 @@ edition = "2018"
 atm-refraction = { path = "../atm-refraction" }
 dted = { path = "../dted" }
 clap = "2.0"
+image = "0.21"
 rayon = "1.0"

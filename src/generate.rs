@@ -4,10 +4,10 @@ use atm_refraction::EarthShape;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ResultPixel {
-    lat: f64,
-    lon: f64,
-    distance: f64,
-    elevation: f64,
+    pub lat: f64,
+    pub lon: f64,
+    pub distance: f64,
+    pub elevation: f64,
 }
 
 pub fn get_single_pixel(params: &Params, terrain: &Terrain, x: u16, y: u16) -> Option<ResultPixel> {
