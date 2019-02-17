@@ -2,7 +2,7 @@ use atm_refraction::{
     air::{get_atmosphere, us76_atmosphere},
     EarthShape, Environment,
 };
-use clap::{App, Arg};
+use clap::{App, AppSettings, Arg};
 
 #[derive(Clone, Copy)]
 pub struct Viewpoint {
@@ -29,6 +29,7 @@ pub struct Params {
 pub fn parse_params() -> Params {
     let matches = App::new("Atmospheric Panorama Raytracer")
         .version("0.1")
+        .setting(AppSettings::AllowLeadingHyphen)
         .arg(
             Arg::with_name("terrain")
                 .short("t")
