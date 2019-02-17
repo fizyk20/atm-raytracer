@@ -77,7 +77,7 @@ fn get_coords_at_dist(params: &Params, dir: f64, dist: f64) -> (f64, f64) {
         EarthShape::Flat => {
             let d_lat = deg2rad(dir).cos() * dist / 111111.111;
             let d_lon =
-                deg2rad(dir).sin() * dist / 111111.111 / deg2rad(params.viewpoint.lat).sin();
+                deg2rad(dir).sin() * dist / 111111.111 / deg2rad(params.viewpoint.lat).cos();
             (params.viewpoint.lat + d_lat, params.viewpoint.lon + d_lon)
         }
         EarthShape::Spherical { radius } => {
