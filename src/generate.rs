@@ -16,7 +16,7 @@ pub fn get_single_pixel(params: &Params, terrain: &Terrain, x: u16, y: u16) -> O
         params
             .env
             .cast_ray_stepper(params.viewpoint.alt, deg2rad(ray_elev), params.straight);
-    ray.set_step_size(50.0);
+    ray.set_step_size(params.step);
 
     let mut elev = -10.0;
     let mut dist = 0.0;

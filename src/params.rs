@@ -22,6 +22,7 @@ pub struct Params {
     pub env: Environment,
     pub max_dist: f64,
     pub straight: bool,
+    pub step: f64,
     pub pic_width: u16,
     pub pic_height: u16,
 }
@@ -105,6 +106,13 @@ pub fn parse_params() -> Params {
                 .long("maxdist")
                 .value_name("DIST")
                 .help("Cutoff distance in km (default: 150)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("step")
+                .long("step")
+                .value_name("STEP")
+                .help("Light ray propagation step in meters (default: 50)")
                 .takes_value(true),
         )
         .arg(
@@ -220,6 +228,13 @@ pub fn parse_params() -> Params {
         .expect("Invalid cutoff distance");
     let max_dist = max_dist * 1e3;
 
+    let step: f64 = matches
+        .value_of("step")
+        .unwrap_or("50")
+        .parse()
+        .ok()
+        .expect("Invalid step value");
+
     let viewpoint = Viewpoint {
         lat,
         lon,
@@ -250,6 +265,7 @@ pub fn parse_params() -> Params {
         viewpoint,
         env: Environment { shape, atmosphere },
         max_dist,
+        step,
         straight: matches.is_present("straight"),
         pic_width,
         pic_height,
