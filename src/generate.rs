@@ -67,7 +67,7 @@ fn get_ray_dir(params: &Params, x: u16, y: u16) -> (f64, f64) {
     let y = (y as i16 - params.pic_height as i16 / 2) as f64 / height;
 
     let ray_dir = params.viewpoint.dir + x * params.viewpoint.fov;
-    let ray_elev = -y * params.viewpoint.fov / aspect;
+    let ray_elev = params.viewpoint.elev_bias - y * params.viewpoint.fov / aspect;
 
     (ray_elev, ray_dir)
 }

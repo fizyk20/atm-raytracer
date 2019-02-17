@@ -11,6 +11,7 @@ pub struct Viewpoint {
     pub alt: f64,
     pub dir: f64,
     pub fov: f64,
+    pub elev_bias: f64,
 }
 
 #[derive(Clone)]
@@ -87,6 +88,14 @@ pub fn parse_params() -> Params {
                 .long("fov")
                 .value_name("DEG")
                 .help("Horizontal field of view in degrees (default: 30)")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("elev-bias")
+                .short("e")
+                .long("elev")
+                .value_name("DEG")
+                .help("Angular elevation of the center of the view (default: 0)")
                 .takes_value(true),
         )
         .arg(
@@ -195,6 +204,13 @@ pub fn parse_params() -> Params {
         .ok()
         .expect("Invalid field of view");
 
+    let elev_bias: f64 = matches
+        .value_of("elev-bias")
+        .unwrap_or("0")
+        .parse()
+        .ok()
+        .expect("Invalid view elevation");
+
     let max_dist: f64 = matches
         .value_of("max-dist")
         .unwrap_or("150")
@@ -209,6 +225,7 @@ pub fn parse_params() -> Params {
         alt,
         dir,
         fov,
+        elev_bias,
     };
 
     let atmosphere = matches
