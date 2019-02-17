@@ -5,8 +5,8 @@ authors = ["Bartłomiej Kamiński <fizyk20@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-atm-refraction = { path = "../atm-refraction" }
-dted = { path = "../dted" }
+atm-refraction = "0.2"
+dted = "0.1"
 clap = "2.0"
 image = "0.21"
 rayon = "1.0"
