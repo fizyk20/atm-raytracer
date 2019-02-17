@@ -201,6 +201,7 @@ pub fn parse_params() -> Params {
         .parse()
         .ok()
         .expect("Invalid cutoff distance");
+    let max_dist = max_dist * 1e3;
 
     let viewpoint = Viewpoint {
         lat,

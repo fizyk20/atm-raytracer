@@ -16,27 +16,34 @@ pub fn get_single_pixel(params: &Params, terrain: &Terrain, x: u16, y: u16) -> O
         params
             .env
             .cast_ray_stepper(params.viewpoint.alt, deg2rad(ray_elev), params.straight);
+    ray.set_step_size(50.0);
 
-    let mut elev = params.viewpoint.alt;
+    let mut elev = -10.0;
     let mut dist = 0.0;
+    let mut ray_elev = params.viewpoint.alt;
 
     loop {
         let ray_state = ray.next().unwrap();
-        if ray_state.x > params.max_dist * 1e3 {
+        if ray_state.x > params.max_dist {
             return None;
         }
         let (lat, lon) = get_coords_at_dist(params, ray_dir, ray_state.x);
         if let Some(new_elev) = terrain.get_elev(lat, lon) {
             if ray_state.x > 1e3 && ray_state.h < new_elev {
+                let diff1 = ray_elev - elev;
+                let diff2 = ray_state.h - new_elev;
+                let diff_dist = ray_state.x - dist;
+                let prop = diff1 / (diff1 - diff2);
                 return Some(ResultPixel {
                     lat,
                     lon,
-                    distance: dist,
-                    elevation: elev,
+                    distance: dist + diff_dist * prop,
+                    elevation: elev + (new_elev - elev) * prop,
                 });
             }
             elev = new_elev;
             dist = ray_state.x;
+            ray_elev = ray_state.h;
         } else {
             return None;
         }
@@ -60,7 +67,7 @@ fn get_ray_dir(params: &Params, x: u16, y: u16) -> (f64, f64) {
     let y = (y as i16 - params.pic_height as i16 / 2) as f64 / height;
 
     let ray_dir = params.viewpoint.dir + x * params.viewpoint.fov;
-    let ray_elev = y * params.viewpoint.fov / aspect;
+    let ray_elev = -y * params.viewpoint.fov / aspect;
 
     (ray_elev, ray_dir)
 }
@@ -68,8 +75,9 @@ fn get_ray_dir(params: &Params, x: u16, y: u16) -> (f64, f64) {
 fn get_coords_at_dist(params: &Params, dir: f64, dist: f64) -> (f64, f64) {
     match params.env.shape {
         EarthShape::Flat => {
-            let d_lat = deg2rad(dir).cos() * dist / 111.111;
-            let d_lon = deg2rad(dir).sin() * dist / 111.111 / deg2rad(params.viewpoint.lat).sin();
+            let d_lat = deg2rad(dir).cos() * dist / 111111.111;
+            let d_lon =
+                deg2rad(dir).sin() * dist / 111111.111 / deg2rad(params.viewpoint.lat).sin();
             (params.viewpoint.lat + d_lat, params.viewpoint.lon + d_lon)
         }
         EarthShape::Spherical { radius } => {
