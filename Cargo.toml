@@ -8,5 +8,5 @@ edition = "2018"
 atm-refraction = "0.2"
 dted = "0.1"
 clap = "2.0"
-image = "0.21"
+image = { git = "https://github.com/fizyk20/image.git", branch = "rows" }
 rayon = "1.0"

@@ -2,7 +2,7 @@ mod generate;
 mod params;
 mod terrain;
 
-use crate::generate::get_single_pixel;
+use crate::generate::{gen_path_cache, get_single_pixel};
 use crate::params::Params;
 use crate::terrain::Terrain;
 use image::{ImageBuffer, Rgb};
@@ -83,17 +83,20 @@ fn main() {
     }
 
     let mut img = ImageBuffer::new(params.pic_width as u32, params.pic_height as u32);
-    img.enumerate_pixels_mut()
+    img.enumerate_rows_mut()
         .par_bridge()
-        .for_each(|(x, y, px)| {
-            if x == 0 && y % 10 == 0 {
-                println!("x = {}, y = {}", x, y);
-            }
-            let pixel = get_single_pixel(&params, &terrain, x as u16, y as u16);
-            if let Some(pixel) = pixel {
-                *px = color_from_elev_dist(&params, pixel.elevation, pixel.distance);
-            } else {
-                *px = Rgb([28, 28, 28]);
+        .for_each(|(y, pixels)| {
+            let path_cache = gen_path_cache(&params, y as u16);
+            for (x, y, px) in pixels {
+                if x == 0 && y % 10 == 0 {
+                    println!("x = {}, y = {}", x, y);
+                }
+                let pixel = get_single_pixel(&params, &terrain, x as u16, &path_cache);
+                if let Some(pixel) = pixel {
+                    *px = color_from_elev_dist(&params, pixel.elevation, pixel.distance);
+                } else {
+                    *px = Rgb([28, 28, 28]);
+                }
             }
         });
 
