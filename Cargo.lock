@@ -211,7 +211,7 @@ dependencies = [
 [[package]]
 name = "image"
 version = "0.21.0"
-source = "git+https://github.com/fizyk20/image.git?branch=rows#a0dea20a772f90ec4a405cd0d4490f376462010a"
+source = "git+https://github.com/fizyk20/image.git?branch=rows#7836edd13c161a0cf7e02b3bf8c275a0dcf78c9c"
 dependencies = [
  "byteorder 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "gif 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
