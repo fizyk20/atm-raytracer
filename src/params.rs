@@ -1,3 +1,4 @@
+use crate::terrain::Terrain;
 use atm_refraction::{
     air::{get_atmosphere, us76_atmosphere},
     EarthShape, Environment,
@@ -5,13 +6,28 @@ use atm_refraction::{
 use clap::{App, AppSettings, Arg};
 
 #[derive(Clone, Copy)]
+pub enum Altitude {
+    Absolute(f64),
+    Relative(f64),
+}
+
+impl Altitude {
+    pub fn abs(&self, terrain: &Terrain, lat: f64, lon: f64) -> f64 {
+        match *self {
+            Altitude::Absolute(x) => x,
+            Altitude::Relative(x) => terrain.get_elev(lat, lon).unwrap_or(0.0) + x,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct Viewpoint {
     pub lat: f64,
     pub lon: f64,
-    pub alt: f64,
+    pub alt: Altitude,
     pub dir: f64,
     pub fov: f64,
-    pub elev_bias: f64,
+    pub tilt: f64,
 }
 
 #[derive(Clone)]
@@ -69,8 +85,19 @@ pub fn parse_params() -> Params {
                 .short("a")
                 .long("alt")
                 .value_name("ALT")
+                .conflicts_with("elevation")
+                .required_unless("elevation")
                 .help("Viewpoint altitude in meters")
-                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("elevation")
+                .short("e")
+                .long("elev")
+                .value_name("ELEV")
+                .conflicts_with("altitude")
+                .required_unless("altitude")
+                .help("Viewpoint elevation in meters (above the terrain)")
                 .takes_value(true),
         )
         .arg(
@@ -93,11 +120,11 @@ pub fn parse_params() -> Params {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("elev-bias")
-                .short("e")
-                .long("elev")
+            Arg::with_name("tilt")
+                .short("i")
+                .long("tilt")
                 .value_name("DEG")
-                .help("Angular elevation of the center of the view (default: 0)")
+                .help("Observer tilt relative to the horizon in degrees (default: 0)")
                 .takes_value(true),
         )
         .arg(
@@ -192,12 +219,11 @@ pub fn parse_params() -> Params {
         .ok()
         .expect("Invalid viewpoint longitude");
 
-    let alt: f64 = matches
-        .value_of("altitude")
-        .expect("Altitude not present")
-        .parse()
-        .ok()
-        .expect("Invalid viewpoint altitude");
+    let alt: Altitude = match (matches.value_of("altitude"), matches.value_of("elevation")) {
+        (Some(a), None) => Altitude::Absolute(a.parse().ok().expect("Invalid viewpoint altitude")),
+        (None, Some(e)) => Altitude::Relative(e.parse().ok().expect("Invalid viewpoint elevation")),
+        _ => unreachable!(),
+    };
 
     let dir: f64 = matches
         .value_of("direction")
@@ -213,12 +239,12 @@ pub fn parse_params() -> Params {
         .ok()
         .expect("Invalid field of view");
 
-    let elev_bias: f64 = matches
-        .value_of("elev-bias")
+    let tilt: f64 = matches
+        .value_of("tilt")
         .unwrap_or("0")
         .parse()
         .ok()
-        .expect("Invalid view elevation");
+        .expect("Invalid view tilt");
 
     let max_dist: f64 = matches
         .value_of("max-dist")
@@ -241,7 +267,7 @@ pub fn parse_params() -> Params {
         alt,
         dir,
         fov,
-        elev_bias,
+        tilt,
     };
 
     let atmosphere = matches

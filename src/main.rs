@@ -86,7 +86,7 @@ fn main() {
     img.enumerate_rows_mut()
         .par_bridge()
         .for_each(|(y, pixels)| {
-            let path_cache = gen_path_cache(&params, y as u16);
+            let path_cache = gen_path_cache(&params, &terrain, y as u16);
             for (x, y, px) in pixels {
                 if x == 0 && y % 10 == 0 {
                     println!("x = {}, y = {}", x, y);

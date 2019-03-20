@@ -16,7 +16,7 @@ fn get_ray_elev(params: &Params, y: u16) -> f64 {
     let aspect = width / height;
 
     let y = (y as i16 - params.pic_height as i16 / 2) as f64 / height;
-    let ray_elev = params.viewpoint.elev_bias - y * params.viewpoint.fov / aspect;
+    let ray_elev = params.viewpoint.tilt - y * params.viewpoint.fov / aspect;
     ray_elev
 }
 
@@ -29,12 +29,15 @@ fn get_ray_dir(params: &Params, x: u16) -> f64 {
     ray_dir
 }
 
-pub fn gen_path_cache(params: &Params, y: u16) -> Vec<RayState> {
+pub fn gen_path_cache(params: &Params, terrain: &Terrain, y: u16) -> Vec<RayState> {
     let ray_elev = get_ray_elev(params, y);
-    let mut ray =
-        params
-            .env
-            .cast_ray_stepper(params.viewpoint.alt, ray_elev.to_radians(), params.straight);
+    let alt = params
+        .viewpoint
+        .alt
+        .abs(terrain, params.viewpoint.lat, params.viewpoint.lon);
+    let mut ray = params
+        .env
+        .cast_ray_stepper(alt, ray_elev.to_radians(), params.straight);
     ray.set_step_size(params.step);
 
     let mut path = vec![];
@@ -60,7 +63,11 @@ pub fn get_single_pixel(
 
     let mut elev = -10.0;
     let mut dist = 0.0;
-    let mut ray_elev = params.viewpoint.alt;
+    let mut ray_elev =
+        params
+            .viewpoint
+            .alt
+            .abs(terrain, params.viewpoint.lat, params.viewpoint.lon);
 
     for ray_state in path_cache {
         let (lat, lon) = get_coords_at_dist(params, ray_dir, ray_state.x);
