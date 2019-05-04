@@ -76,6 +76,8 @@ fn main() {
     let mut terrain_folder = env::current_dir().unwrap();
     terrain_folder.push(&params.terrain_folder);
 
+    println!("Using terrain data directory: {:?}", terrain_folder);
+
     for dir_entry in fs::read_dir(terrain_folder).expect("Error opening the terrain data directory")
     {
         let file_path = dir_entry
