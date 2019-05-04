@@ -1,6 +1,6 @@
 use crate::terrain::Terrain;
 use atm_refraction::{
-    air::{get_atmosphere, us76_atmosphere},
+    air::{atm_from_str, get_atmosphere, us76_atmosphere},
     EarthShape, Environment,
 };
 use clap::{App, AppSettings, Arg};
@@ -157,10 +157,16 @@ impl Default for Output {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub enum AtmosphereDef {
+    Path(String),
+    Definition(String),
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Config {
     terrain_folder: Option<String>,
     view: Option<ConfView>,
-    atmosphere: Option<String>,
+    atmosphere: Option<AtmosphereDef>,
     earth_shape: Option<EarthShape>,
     straight_rays: Option<bool>,
     simulation_step: Option<f64>,
@@ -179,10 +185,18 @@ pub struct Params {
 
 impl Config {
     fn into_params(self) -> Params {
-        let atmosphere = self
-            .atmosphere
-            .map(|file| get_atmosphere(&file))
-            .unwrap_or_else(us76_atmosphere);
+        let atmosphere = if let Some(atm_def) = self.atmosphere {
+            match atm_def {
+                AtmosphereDef::Path(path) => {
+                    let mut atm_abs_path = env::current_dir().unwrap();
+                    atm_abs_path.push(&path);
+                    get_atmosphere(&atm_abs_path)
+                }
+                AtmosphereDef::Definition(def) => atm_from_str(&def).unwrap(),
+            }
+        } else {
+            us76_atmosphere()
+        };
         let earth_shape = self
             .earth_shape
             .unwrap_or(EarthShape::Spherical { radius: 6378000.0 });
