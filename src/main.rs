@@ -2,6 +2,9 @@ mod generate;
 mod params;
 mod terrain;
 
+#[macro_use]
+extern crate serde_derive;
+
 use crate::generate::{gen_path_cache, get_single_pixel};
 use crate::params::Params;
 use crate::terrain::Terrain;
@@ -43,7 +46,7 @@ fn hsv(h: f64, s: f64, v: f64) -> Rgb<u8> {
 }
 
 fn color_from_elev_dist(params: &Params, elev: f64, dist: f64) -> Rgb<u8> {
-    let dist_ratio = dist / params.max_dist;
+    let dist_ratio = dist / params.view.frame.max_distance;
     if elev == 0.0 {
         let mul = 1.0 - dist_ratio * 0.6;
         Rgb([0, (128.0 * mul) as u8, (255.0 * mul) as u8])
@@ -82,7 +85,7 @@ fn main() {
         terrain.load_dted(&file_path);
     }
 
-    let mut img = ImageBuffer::new(params.pic_width as u32, params.pic_height as u32);
+    let mut img = ImageBuffer::new(params.output.width as u32, params.output.height as u32);
     img.enumerate_rows_mut()
         .par_bridge()
         .for_each(|(y, pixels)| {
@@ -101,7 +104,7 @@ fn main() {
         });
 
     let mut output_file = env::current_dir().unwrap();
-    output_file.push(&params.output_file);
+    output_file.push(&params.output.file);
 
     img.save(output_file).unwrap();
 }

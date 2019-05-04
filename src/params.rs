@@ -4,8 +4,11 @@ use atm_refraction::{
     EarthShape, Environment,
 };
 use clap::{App, AppSettings, Arg};
+use std::env;
+use std::fs::File;
+use std::io::Read;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum Altitude {
     Absolute(f64),
     Relative(f64),
@@ -20,27 +23,205 @@ impl Altitude {
     }
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub struct ConfPosition {
+    latitude: Option<f64>,
+    longitude: Option<f64>,
+    altitude: Option<Altitude>,
+}
+
 #[derive(Clone, Copy)]
-pub struct Viewpoint {
-    pub lat: f64,
-    pub lon: f64,
-    pub alt: Altitude,
-    pub dir: f64,
-    pub fov: f64,
+pub struct Position {
+    pub latitude: f64,
+    pub longitude: f64,
+    pub altitude: Altitude,
+}
+
+impl ConfPosition {
+    pub fn into_position(self) -> Position {
+        Position {
+            latitude: self.latitude.unwrap_or(0.0),
+            longitude: self.longitude.unwrap_or(0.0),
+            altitude: self.altitude.unwrap_or(Altitude::Relative(1.0)),
+        }
+    }
+}
+
+impl Default for Position {
+    fn default() -> Position {
+        Position {
+            latitude: 0.0,
+            longitude: 0.0,
+            altitude: Altitude::Relative(1.0),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub struct ConfFrame {
+    direction: Option<f64>,
+    tilt: Option<f64>,
+    fov: Option<f64>,
+    max_distance: Option<f64>,
+}
+
+#[derive(Clone, Copy)]
+pub struct Frame {
+    pub direction: f64,
     pub tilt: f64,
+    pub fov: f64,
+    pub max_distance: f64,
+}
+
+impl ConfFrame {
+    pub fn into_frame(self) -> Frame {
+        Frame {
+            direction: self.direction.unwrap_or(0.0),
+            tilt: self.tilt.unwrap_or(0.0),
+            fov: self.fov.unwrap_or(30.0),
+            max_distance: self.max_distance.unwrap_or(150000.0),
+        }
+    }
+}
+
+impl Default for Frame {
+    fn default() -> Frame {
+        Frame {
+            direction: 0.0,
+            tilt: 0.0,
+            fov: 30.0,
+            max_distance: 150000.0,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub struct ConfView {
+    position: Option<ConfPosition>,
+    frame: Option<ConfFrame>,
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct View {
+    pub position: Position,
+    pub frame: Frame,
+}
+
+impl ConfView {
+    pub fn into_view(self) -> View {
+        View {
+            position: self
+                .position
+                .map(ConfPosition::into_position)
+                .unwrap_or_else(Default::default),
+            frame: self
+                .frame
+                .map(ConfFrame::into_frame)
+                .unwrap_or_else(Default::default),
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ConfOutput {
+    file: Option<String>,
+    width: Option<u16>,
+    height: Option<u16>,
+}
+
+#[derive(Clone)]
+pub struct Output {
+    pub file: String,
+    pub width: u16,
+    pub height: u16,
+}
+
+impl ConfOutput {
+    fn into_output(self) -> Output {
+        Output {
+            file: self.file.unwrap_or_else(|| "./output.png".to_owned()),
+            width: self.width.unwrap_or(640),
+            height: self.height.unwrap_or(480),
+        }
+    }
+}
+
+impl Default for Output {
+    fn default() -> Output {
+        Output {
+            file: "./output.png".to_owned(),
+            width: 640,
+            height: 480,
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Config {
+    terrain_folder: Option<String>,
+    view: Option<ConfView>,
+    atmosphere: Option<String>,
+    earth_shape: Option<EarthShape>,
+    straight_rays: Option<bool>,
+    simulation_step: Option<f64>,
+    output: Option<ConfOutput>,
 }
 
 #[derive(Clone)]
 pub struct Params {
     pub terrain_folder: String,
-    pub output_file: String,
-    pub viewpoint: Viewpoint,
+    pub view: View,
     pub env: Environment,
-    pub max_dist: f64,
-    pub straight: bool,
-    pub step: f64,
-    pub pic_width: u16,
-    pub pic_height: u16,
+    pub straight_rays: bool,
+    pub simulation_step: f64,
+    pub output: Output,
+}
+
+impl Config {
+    fn into_params(self) -> Params {
+        let atmosphere = self
+            .atmosphere
+            .map(|file| get_atmosphere(&file))
+            .unwrap_or_else(us76_atmosphere);
+        let earth_shape = self
+            .earth_shape
+            .unwrap_or(EarthShape::Spherical { radius: 6378000.0 });
+        Params {
+            terrain_folder: self
+                .terrain_folder
+                .unwrap_or_else(|| "./terrain".to_owned()),
+            view: self
+                .view
+                .map(ConfView::into_view)
+                .unwrap_or_else(Default::default),
+            env: Environment {
+                shape: earth_shape,
+                atmosphere,
+            },
+            straight_rays: self.straight_rays.unwrap_or(false),
+            simulation_step: self.simulation_step.unwrap_or(50.0),
+            output: self
+                .output
+                .map(ConfOutput::into_output)
+                .unwrap_or_else(Default::default),
+        }
+    }
+}
+
+impl Default for Params {
+    fn default() -> Params {
+        Params {
+            terrain_folder: "./terrain".to_owned(),
+            view: Default::default(),
+            env: Environment {
+                shape: EarthShape::Spherical { radius: 6378000.0 },
+                atmosphere: us76_atmosphere(),
+            },
+            straight_rays: false,
+            simulation_step: 50.0,
+            output: Default::default(),
+        }
+    }
 }
 
 pub fn parse_params() -> Params {
@@ -67,8 +248,7 @@ pub fn parse_params() -> Params {
                 .short("l")
                 .long("lat")
                 .value_name("DEG")
-                .help("Viewpoint latitude in degrees")
-                .required(true)
+                .help("Viewpoint latitude in degrees (default: 0)")
                 .takes_value(true),
         )
         .arg(
@@ -76,8 +256,7 @@ pub fn parse_params() -> Params {
                 .short("g")
                 .long("lon")
                 .value_name("DEG")
-                .help("Viewpoint longitude in degrees")
-                .required(true)
+                .help("Viewpoint longitude in degrees (default: 0)")
                 .takes_value(true),
         )
         .arg(
@@ -86,7 +265,6 @@ pub fn parse_params() -> Params {
                 .long("alt")
                 .value_name("ALT")
                 .conflicts_with("elevation")
-                .required_unless("elevation")
                 .help("Viewpoint altitude in meters")
                 .takes_value(true),
         )
@@ -96,7 +274,6 @@ pub fn parse_params() -> Params {
                 .long("elev")
                 .value_name("ELEV")
                 .conflicts_with("altitude")
-                .required_unless("altitude")
                 .help("Viewpoint elevation in meters (above the terrain)")
                 .takes_value(true),
         )
@@ -108,7 +285,6 @@ pub fn parse_params() -> Params {
                 .help(
                     "Viewing azimuth in degrees (ie. 0 = north, 90 = east, 180 = south, 270 = west)",
                 )
-                .required(true)
                 .takes_value(true),
         )
         .arg(
@@ -167,7 +343,7 @@ pub fn parse_params() -> Params {
             Arg::with_name("output")
                 .long("output")
                 .value_name("FILE")
-                .help("File name to save the output image as")
+                .help("File name to save the output image as (default: output.png)")
                 .takes_value(true),
         )
         .arg(
@@ -186,114 +362,104 @@ pub fn parse_params() -> Params {
                 .help("Output image height in pixels (default: 480)")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("config")
+                .short("c")
+                .long("config")
+                .value_name("FILE")
+                .help("Path to a config file with alternative defaults")
+                .takes_value(true),
+        )
         .get_matches();
 
-    let terrain = matches.value_of("terrain").unwrap_or("./terrain");
-    let output = matches.value_of("output").unwrap_or("./output.png");
-
-    let pic_width: u16 = matches
-        .value_of("width")
-        .unwrap_or("640")
-        .parse()
-        .ok()
-        .expect("Invalid output width");
-
-    let pic_height: u16 = matches
-        .value_of("height")
-        .unwrap_or("480")
-        .parse()
-        .ok()
-        .expect("Invalid output height");
-
-    let lat: f64 = matches
-        .value_of("latitude")
-        .expect("Latitude not present")
-        .parse()
-        .ok()
-        .expect("Invalid viewpoint latitude");
-
-    let lon: f64 = matches
-        .value_of("longitude")
-        .expect("Longitude not present")
-        .parse()
-        .ok()
-        .expect("Invalid viewpoint longitude");
-
-    let alt: Altitude = match (matches.value_of("altitude"), matches.value_of("elevation")) {
-        (Some(a), None) => Altitude::Absolute(a.parse().ok().expect("Invalid viewpoint altitude")),
-        (None, Some(e)) => Altitude::Relative(e.parse().ok().expect("Invalid viewpoint elevation")),
-        _ => unreachable!(),
+    let mut params = if let Some(config_path) = matches.value_of("config") {
+        let mut config_abs_path = env::current_dir().unwrap();
+        config_abs_path.push(&config_path);
+        let mut config_file = File::open(&config_abs_path).unwrap();
+        let mut contents = String::new();
+        config_file.read_to_string(&mut contents).unwrap();
+        serde_yaml::from_str::<Config>(&contents)
+            .unwrap()
+            .into_params()
+    } else {
+        Default::default()
     };
 
-    let dir: f64 = matches
-        .value_of("direction")
-        .expect("Direction not present")
-        .parse()
-        .ok()
-        .expect("Invalid viewing azimuth");
+    if let Some(terrain) = matches.value_of("terrain") {
+        params.terrain_folder = terrain.to_owned();
+    }
+    if let Some(output) = matches.value_of("output") {
+        params.output.file = output.to_owned();
+    }
 
-    let fov: f64 = matches
-        .value_of("fov")
-        .unwrap_or("30")
-        .parse()
-        .ok()
-        .expect("Invalid field of view");
+    if let Some(pic_width) = matches.value_of("width") {
+        params.output.width = pic_width.parse().ok().expect("Invalid output width");
+    }
 
-    let tilt: f64 = matches
-        .value_of("tilt")
-        .unwrap_or("0")
-        .parse()
-        .ok()
-        .expect("Invalid view tilt");
+    if let Some(pic_height) = matches.value_of("height") {
+        params.output.height = pic_height.parse().ok().expect("Invalid output height");
+    }
 
-    let max_dist: f64 = matches
-        .value_of("max-dist")
-        .unwrap_or("150")
-        .parse()
-        .ok()
-        .expect("Invalid cutoff distance");
-    let max_dist = max_dist * 1e3;
+    if let Some(lat) = matches.value_of("latitude") {
+        params.view.position.latitude = lat.parse().ok().expect("Invalid viewpoint latitude");
+    }
 
-    let step: f64 = matches
-        .value_of("step")
-        .unwrap_or("50")
-        .parse()
-        .ok()
-        .expect("Invalid step value");
+    if let Some(lon) = matches.value_of("longitude") {
+        params.view.position.longitude = lon.parse().ok().expect("Invalid viewpoint longitude");
+    }
 
-    let viewpoint = Viewpoint {
-        lat,
-        lon,
-        alt,
-        dir,
-        fov,
-        tilt,
+    match (matches.value_of("altitude"), matches.value_of("elevation")) {
+        (Some(a), None) => {
+            params.view.position.altitude =
+                Altitude::Absolute(a.parse().ok().expect("Invalid viewpoint altitude"));
+        }
+        (None, Some(e)) => {
+            params.view.position.altitude =
+                Altitude::Relative(e.parse().ok().expect("Invalid viewpoint elevation"));
+        }
+        _ => (),
     };
 
-    let atmosphere = matches
-        .value_of("atmosphere")
-        .map(|file| get_atmosphere(&file))
-        .unwrap_or_else(us76_atmosphere);
+    if let Some(dir) = matches.value_of("direction") {
+        params.view.frame.direction = dir.parse().ok().expect("Invalid viewing azimuth");
+    }
 
-    let shape = match (matches.is_present("flat"), matches.value_of("radius")) {
-        (false, None) => EarthShape::Spherical { radius: 6378000.0 },
-        (true, None) => EarthShape::Flat,
+    if let Some(fov) = matches.value_of("fov") {
+        params.view.frame.fov = fov.parse().ok().expect("Invalid field of view");
+    }
+
+    if let Some(tilt) = matches.value_of("tilt") {
+        params.view.frame.tilt = tilt.parse().ok().expect("Invalid view tilt");
+    }
+
+    if let Some(max_dist) = matches.value_of("max-dist") {
+        params.view.frame.max_distance = max_dist
+            .parse::<f64>()
+            .ok()
+            .expect("Invalid cutoff distance")
+            * 1e3;
+    }
+
+    if let Some(step) = matches.value_of("step") {
+        params.simulation_step = step.parse().ok().expect("Invalid step value");
+    }
+
+    if let Some(atmosphere) = matches.value_of("atmosphere") {
+        let atmosphere = get_atmosphere(&atmosphere);
+        params.env.atmosphere = atmosphere;
+    }
+
+    match (matches.is_present("flat"), matches.value_of("radius")) {
+        (true, None) => {
+            params.env.shape = EarthShape::Flat;
+        }
         (false, Some(radius)) => {
             let r: f64 = radius.parse().ok().expect("Invalid radius passed");
-            EarthShape::Spherical { radius: r * 1e3 }
+            params.env.shape = EarthShape::Spherical { radius: r * 1e3 };
         }
         (true, Some(_)) => panic!("Conflicting Earth shape options chosen!"),
+        _ => (),
     };
 
-    Params {
-        terrain_folder: terrain.to_owned(),
-        output_file: output.to_owned(),
-        viewpoint,
-        env: Environment { shape, atmosphere },
-        max_dist,
-        step,
-        straight: matches.is_present("straight"),
-        pic_width,
-        pic_height,
-    }
+    params
 }

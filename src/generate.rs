@@ -11,41 +11,42 @@ pub struct ResultPixel {
 }
 
 fn get_ray_elev(params: &Params, y: u16) -> f64 {
-    let width = params.pic_width as f64;
-    let height = params.pic_height as f64;
+    let width = params.output.width as f64;
+    let height = params.output.height as f64;
     let aspect = width / height;
 
-    let y = (y as i16 - params.pic_height as i16 / 2) as f64 / height;
-    let ray_elev = params.viewpoint.tilt - y * params.viewpoint.fov / aspect;
+    let y = (y as i16 - params.output.height as i16 / 2) as f64 / height;
+    let ray_elev = params.view.frame.tilt - y * params.view.frame.fov / aspect;
     ray_elev
 }
 
 fn get_ray_dir(params: &Params, x: u16) -> f64 {
-    let width = params.pic_width as f64;
-    let x = (x as i16 - params.pic_width as i16 / 2) as f64 / width;
+    let width = params.output.width as f64;
+    let x = (x as i16 - params.output.width as i16 / 2) as f64 / width;
 
-    let ray_dir = params.viewpoint.dir + x * params.viewpoint.fov;
+    let ray_dir = params.view.frame.direction + x * params.view.frame.fov;
 
     ray_dir
 }
 
 pub fn gen_path_cache(params: &Params, terrain: &Terrain, y: u16) -> Vec<RayState> {
     let ray_elev = get_ray_elev(params, y);
-    let alt = params
-        .viewpoint
-        .alt
-        .abs(terrain, params.viewpoint.lat, params.viewpoint.lon);
+    let alt = params.view.position.altitude.abs(
+        terrain,
+        params.view.position.latitude,
+        params.view.position.longitude,
+    );
     let mut ray = params
         .env
-        .cast_ray_stepper(alt, ray_elev.to_radians(), params.straight);
-    ray.set_step_size(params.step);
+        .cast_ray_stepper(alt, ray_elev.to_radians(), params.straight_rays);
+    ray.set_step_size(params.simulation_step);
 
     let mut path = vec![];
 
     loop {
         let ray_state = ray.next().unwrap();
         path.push(ray_state);
-        if ray_state.x > params.max_dist {
+        if ray_state.x > params.view.frame.max_distance {
             break;
         }
     }
@@ -63,11 +64,11 @@ pub fn get_single_pixel(
 
     let mut elev = -10.0;
     let mut dist = 0.0;
-    let mut ray_elev =
-        params
-            .viewpoint
-            .alt
-            .abs(terrain, params.viewpoint.lat, params.viewpoint.lon);
+    let mut ray_elev = params.view.position.altitude.abs(
+        terrain,
+        params.view.position.latitude,
+        params.view.position.longitude,
+    );
 
     for ray_state in path_cache {
         let (lat, lon) = get_coords_at_dist(params, ray_dir, ray_state.x);
@@ -100,14 +101,17 @@ fn get_coords_at_dist(params: &Params, dir: f64, dist: f64) -> (f64, f64) {
             let d_lat = dir.to_radians().cos() * dist / 111111.111;
             let d_lon = dir.to_radians().sin() * dist
                 / 111111.111
-                / params.viewpoint.lat.to_radians().cos();
-            (params.viewpoint.lat + d_lat, params.viewpoint.lon + d_lon)
+                / params.view.position.latitude.to_radians().cos();
+            (
+                params.view.position.latitude + d_lat,
+                params.view.position.longitude + d_lon,
+            )
         }
         EarthShape::Spherical { radius } => {
             let ang = dist / radius;
 
-            let lat_rad = params.viewpoint.lat.to_radians();
-            let lon_rad = params.viewpoint.lon.to_radians();
+            let lat_rad = params.view.position.latitude.to_radians();
+            let lon_rad = params.view.position.longitude.to_radians();
 
             let pos_x = lat_rad.cos() * lon_rad.cos();
             let pos_y = lat_rad.cos() * lon_rad.sin();
