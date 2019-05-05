@@ -17,7 +17,11 @@ Typical usage would be:
 
 1. Download some DTED elevation map files, for example from https://earthexplorer.usgs.gov/
 2. Put the DTED files in a single folder
-3. Run `cargo run --release -- PARAMETERS`, where the parameters are:
+3. Run `cargo run --release -- PARAMETERS`, where the possible parameters are:
+
+* `-c, --config PATH` - path to a YAML config file, defining any of the values described below.
+
+If both a config file and other parameters are supplied, the command line parameters override the values defined in the YAML config.
 
 * `-t, --terrain PATH` - path to a folder containing files in DTED format
 
@@ -35,7 +39,7 @@ Simulation environment options:
 
 * `-R, --radius RADIUS` - the Earth's simulated radius, conflicts with `--flat`
 * `--flat` - simulate a flat Earth; conflicts with `--radius`
-* `--atmosphere PATH` - path to a file describing the atmosphere configuration; to be documented
+* `--atmosphere PATH` - path to a file describing the atmosphere configuration; documented below
 * `-s, --straight` - propagate light rays along straight lines (by default the rays are bent according to the atmospheric temperature and pressure)
 * `--step STEP` - when simulating a light ray, a single simulation step will be by this many meters
 
@@ -44,3 +48,117 @@ Output options:
 * `-o, --output PATH` - the resulting image will be saved under this name
 * `-w, --width PIXELS` - the output image width in pixels
 * `-h, --height PIXELS` - the output image height in pixels
+
+### Atmosphere Configuration
+
+The structure of the atmosphere can be defined either in a separate file, or as part of the YAML config file.
+
+It consists of:
+- atmospheric pressure at some altitude, in pascals
+- air temperature at some altitude, in kelvins
+- a list of temperature gradients (lapse rates)
+
+An example configuration could be:
+
+```
+pressure(0) = 101325
+temperature:
+  at(0) = 288
+  lapse() = -0.0065
+  lapse(11e3) = 0
+```
+
+(All whitespaces, except line breaks, are optional.)
+
+Let's go through it line by line:
+
+1. `pressure(0) = 101325` defines the pressure at altitude 0 to be 101325 pascals. The altitude can be anything, for example `pressure(1000) = 95000` would define the pressure at 1000 m ASL to be 950 hPa. Only a single `pressure` line is allowed, the pressure at all other altitudes is calculated based on the temperature profile and the ideal gas law.
+2. `temperature:` begins the temperature profile definition section.
+3. `at(0) = 288` defines temperature at altitude 0 to be 288 K. As with the pressure, other altitudes and temperatures can be set, for example `at(500) = 280` sets the temperature at 500 m ASL to be 280 K. As with the pressure, only a single `at` line is allowed.
+4. `lapse() = -0.0065` defines the temperature gradient at all altitudes from negative infinity to be -0.0065 K/m (the temperature drops by 0.0065 kelvins for every meter of altitude). The other `lapse` lines can define layers with different gradients, see below.
+5. `lapse(11e3) = 0` states that the gradient should become 0 at altitudes 11e3 = 11000 meters and above. There can be multiple such `lapse` lines: every such line sets the temperature gradient at the given altitude and above.
+
+To elaborate on that last point: if, for example, you want the temperature gradient to start at 0.1 K/m, change to 0.05 K/m at 10 m ASL, then to -0.01 K/m at 50 m ASL, you would write the following:
+
+```
+lapse() = 0.1
+lapse(10) = 0.05
+lapse(50) = -0.01
+```
+
+### YAML config
+
+The example config below illustrates the usage:
+
+```yaml
+# the path to the folder with terrain data
+terrain_folder: /home/user/atm-raytracer/terrain
+
+# view configuration
+view:
+    # the position of the observer
+    position:
+        # latitude and longitude in degrees
+        latitude: 49.979439
+        longitude: 21.622839
+        altitude:
+            # can be either:
+            # Absolute: x
+            # or
+            # Relative: x
+            # Absolute defines the view point at x meters ASL. Relative is above the terrain.
+            Relative: 2
+    # Frame definition: viewing direction, FoV, camera tilt, cutoff distance
+    frame:
+        # viewing azimuth; 0 = north, 90 = east, 180 = south, 270 = west
+        direction: 231
+        # horizontal field of view in degrees
+        fov: 4
+        # rays will not be propagated further than this distance from the observer (in meters)
+        max_distance: 200000
+        # camera tilt relative to horizontal, in degrees; 1 = tilted one degree up
+        tilt: 0
+
+# the shape of the simulated Earth
+# can be either of:
+# earth_shape: Flat
+# or
+# earth_shape:
+#   Spherical:
+#     radius: x (in meters)
+earth_shape:
+    Spherical:
+        radius: 6378000
+
+# straight_rays: if true, rays are just propagated along straight lines.
+# if false, actual light propagation equations are used
+straight_rays: false
+
+# a single propagation step advances the ray by this many meters
+# the lower this value, the more accurate the rendering is, but the longer it takes
+simulation_step: 50
+
+# output options
+output:
+    # image width in pixels
+    width: 960
+    # image height in pixels
+    height: 600
+    # location in which the output will be saved
+    file: ./output.png
+
+# atmosphere structure definition
+# can be either:
+# Path: path/to/file.cfg
+# or
+# Definition: atmosphere-config-string
+# if Definition is being used, it will usually look like below, with the pipe character indicating
+# that a multi-line value follows
+atmosphere:
+    Definition: |
+        pressure(0) = 101325
+        temperature:
+        at(0) = 288
+        lapse() = -0.0065
+        lapse(11e3) = 0.0
+```
