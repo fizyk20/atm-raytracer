@@ -47,7 +47,7 @@ fn hsv(h: f64, s: f64, v: f64) -> Rgb<u8> {
 
 fn color_from_elev_dist(params: &Params, elev: f64, dist: f64) -> Rgb<u8> {
     let dist_ratio = dist / params.view.frame.max_distance;
-    if elev == 0.0 {
+    if elev <= params.view.frame.water_level {
         let mul = 1.0 - dist_ratio * 0.6;
         Rgb([0, (128.0 * mul) as u8, (255.0 * mul) as u8])
     } else {

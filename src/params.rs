@@ -63,6 +63,7 @@ pub struct ConfFrame {
     tilt: Option<f64>,
     fov: Option<f64>,
     max_distance: Option<f64>,
+    water_level: Option<f64>,
 }
 
 #[derive(Clone, Copy)]
@@ -71,6 +72,7 @@ pub struct Frame {
     pub tilt: f64,
     pub fov: f64,
     pub max_distance: f64,
+    pub water_level: f64,
 }
 
 impl ConfFrame {
@@ -80,6 +82,7 @@ impl ConfFrame {
             tilt: self.tilt.unwrap_or(0.0),
             fov: self.fov.unwrap_or(30.0),
             max_distance: self.max_distance.unwrap_or(150000.0),
+            water_level: self.water_level.unwrap_or(0.0),
         }
     }
 }
@@ -91,6 +94,7 @@ impl Default for Frame {
             tilt: 0.0,
             fov: 30.0,
             max_distance: 150000.0,
+            water_level: 0.0,
         }
     }
 }
