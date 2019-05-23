@@ -127,10 +127,18 @@ impl ConfView {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+pub struct Tick {
+    pub azimuth: f64,
+    pub size: u32,
+    pub labelled: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ConfOutput {
     file: Option<String>,
     width: Option<u16>,
     height: Option<u16>,
+    ticks: Option<Vec<Tick>>,
 }
 
 #[derive(Clone)]
@@ -138,6 +146,7 @@ pub struct Output {
     pub file: String,
     pub width: u16,
     pub height: u16,
+    pub ticks: Vec<Tick>,
 }
 
 impl ConfOutput {
@@ -146,6 +155,7 @@ impl ConfOutput {
             file: self.file.unwrap_or_else(|| "./output.png".to_owned()),
             width: self.width.unwrap_or(640),
             height: self.height.unwrap_or(480),
+            ticks: self.ticks.unwrap_or_else(Vec::new),
         }
     }
 }
@@ -156,6 +166,7 @@ impl Default for Output {
             file: "./output.png".to_owned(),
             width: 640,
             height: 480,
+            ticks: Vec::new(),
         }
     }
 }
@@ -185,6 +196,13 @@ pub struct Params {
     pub straight_rays: bool,
     pub simulation_step: f64,
     pub output: Output,
+}
+
+impl Params {
+    pub fn azimuth_to_x(&self, azimuth: f64) -> u32 {
+        let x01 = (azimuth - self.view.frame.direction) / self.view.frame.fov + 0.5;
+        ((self.output.width as f64) * x01) as u32
+    }
 }
 
 impl Config {

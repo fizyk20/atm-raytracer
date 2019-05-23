@@ -8,8 +8,10 @@ extern crate serde_derive;
 use crate::generate::{gen_path_cache, get_single_pixel};
 use crate::params::Params;
 use crate::terrain::Terrain;
-use image::{ImageBuffer, Rgb};
+use image::{ImageBuffer, Pixel, Rgb};
+use imageproc::drawing::{draw_line_segment_mut, draw_text_mut};
 use rayon::prelude::*;
+use rusttype::{FontCollection, Scale};
 use std::env;
 use std::fs;
 
@@ -69,6 +71,40 @@ fn color_from_elev_dist(params: &Params, elev: f64, dist: f64) -> Rgb<u8> {
     }
 }
 
+static FONT: &'static [u8] = include_bytes!("DejaVuSans.ttf");
+
+fn draw_ticks(img: &mut ImageBuffer<Rgb<u8>, Vec<<Rgb<u8> as Pixel>::Subpixel>>, params: &Params) {
+    let font = FontCollection::from_bytes(FONT)
+        .unwrap()
+        .into_font()
+        .unwrap();
+    let height = 15.0;
+    let scale = Scale {
+        x: height,
+        y: height,
+    };
+    for tick in &params.output.ticks {
+        let x = params.azimuth_to_x(tick.azimuth);
+        draw_line_segment_mut(
+            img,
+            (x as f32, 0.0),
+            (x as f32, tick.size as f32),
+            Rgb([255, 255, 255]),
+        );
+        if tick.labelled {
+            draw_text_mut(
+                img,
+                Rgb([255, 255, 255]),
+                x - 8,
+                tick.size + 5,
+                scale,
+                &font,
+                &format!("{}", tick.azimuth),
+            );
+        }
+    }
+}
+
 fn main() {
     let params = params::parse_params();
 
@@ -104,6 +140,8 @@ fn main() {
                 }
             }
         });
+
+    draw_ticks(&mut img, &params);
 
     let mut output_file = env::current_dir().unwrap();
     output_file.push(&params.output.file);
