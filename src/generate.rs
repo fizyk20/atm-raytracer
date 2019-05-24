@@ -62,7 +62,12 @@ pub fn get_single_pixel(
 ) -> Option<ResultPixel> {
     let ray_dir = get_ray_dir(params, x);
 
-    let mut elev = -10.0;
+    let mut elev = terrain
+        .get_elev(
+            params.view.position.latitude,
+            params.view.position.longitude,
+        )
+        .unwrap_or(0.0);
     let mut dist = 0.0;
     let mut ray_elev = params.view.position.altitude.abs(
         terrain,
@@ -73,7 +78,7 @@ pub fn get_single_pixel(
     for ray_state in path_cache {
         let (lat, lon) = get_coords_at_dist(params, ray_dir, ray_state.x);
         if let Some(new_elev) = terrain.get_elev(lat, lon) {
-            if ray_state.x > 1e3 && ray_state.h < new_elev {
+            if ray_state.h < new_elev {
                 let diff1 = ray_elev - elev;
                 let diff2 = ray_state.h - new_elev;
                 let diff_dist = ray_state.x - dist;
