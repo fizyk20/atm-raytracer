@@ -127,10 +127,18 @@ impl ConfView {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct Tick {
-    pub azimuth: f64,
-    pub size: u32,
-    pub labelled: bool,
+pub enum Tick {
+    Single {
+        azimuth: f64,
+        size: u32,
+        labelled: bool,
+    },
+    Multiple {
+        bias: f64,
+        step: f64,
+        size: u32,
+        labelled: bool,
+    },
 }
 
 #[derive(Clone, Serialize, Deserialize)]

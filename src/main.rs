@@ -6,12 +6,14 @@ mod terrain;
 extern crate serde_derive;
 
 use crate::generate::{gen_path_cache, get_single_pixel};
-use crate::params::Params;
+use crate::params::{Params, Tick};
 use crate::terrain::Terrain;
 use image::{ImageBuffer, Pixel, Rgb};
 use imageproc::drawing::{draw_line_segment_mut, draw_text_mut};
 use rayon::prelude::*;
 use rusttype::{FontCollection, Scale};
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 
@@ -73,6 +75,76 @@ fn color_from_elev_dist(params: &Params, elev: f64, dist: f64) -> Rgb<u8> {
 
 static FONT: &'static [u8] = include_bytes!("DejaVuSans.ttf");
 
+struct DrawTick {
+    size: u32,
+    azimuth: f64,
+    labelled: bool,
+}
+
+fn into_draw_ticks(tick: &Tick, params: &Params) -> Vec<(u32, DrawTick)> {
+    match tick {
+        &Tick::Single {
+            azimuth,
+            size,
+            labelled,
+        } => {
+            let x = params.azimuth_to_x(azimuth);
+            vec![(
+                x,
+                DrawTick {
+                    azimuth,
+                    size,
+                    labelled,
+                },
+            )]
+        }
+        &Tick::Multiple {
+            bias,
+            step,
+            size,
+            labelled,
+        } => {
+            let min_az = params.view.frame.direction - params.view.frame.fov / 2.0;
+            let max_az = params.view.frame.direction + params.view.frame.fov / 2.0;
+            let mut current_az = ((min_az - bias) / step).ceil() * step + bias;
+            let mut result = Vec::new();
+            while current_az < max_az {
+                let x = params.azimuth_to_x(current_az);
+                result.push((
+                    x,
+                    DrawTick {
+                        size,
+                        labelled,
+                        azimuth: current_az,
+                    },
+                ));
+                current_az += step;
+            }
+            result
+        }
+    }
+}
+
+fn gen_ticks(params: &Params) -> HashMap<u32, DrawTick> {
+    let mut result = HashMap::new();
+    for tick in &params.output.ticks {
+        let new_ticks = into_draw_ticks(tick, params);
+        for (x, tick) in new_ticks {
+            match result.entry(x) {
+                Entry::Vacant(v) => {
+                    v.insert(tick);
+                }
+                Entry::Occupied(mut o) => {
+                    if o.get().size < tick.size {
+                        o.insert(tick);
+                    }
+                }
+            }
+        }
+    }
+    result
+}
+
 fn draw_ticks(img: &mut ImageBuffer<Rgb<u8>, Vec<<Rgb<u8> as Pixel>::Subpixel>>, params: &Params) {
     let font = FontCollection::from_bytes(FONT)
         .unwrap()
@@ -83,8 +155,8 @@ fn draw_ticks(img: &mut ImageBuffer<Rgb<u8>, Vec<<Rgb<u8> as Pixel>::Subpixel>>,
         x: height,
         y: height,
     };
-    for tick in &params.output.ticks {
-        let x = params.azimuth_to_x(tick.azimuth);
+    let ticks = gen_ticks(params);
+    for (x, tick) in ticks {
         draw_line_segment_mut(
             img,
             (x as f32, 0.0),
