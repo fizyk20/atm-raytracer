@@ -146,6 +146,39 @@ output:
     height: 600
     # location in which the output will be saved
     file: ./output.png
+    # optional ticks marking the azimuths; multiple definitions are possible
+    # a definition is either "Single" - a single tick at a specific azimuth - or "Multiple" -
+    # multiple ticks separated by some step, and shifted by some constant ("bias")
+    # example config below
+    ticks:
+      # a tick every 10 degrees, not shifted (bias = 0), so ticks will be at 0, 10, 20 etc.
+      - Multiple:
+          # number of degrees by which to shift the ticks
+          bias: 0
+          # step size: every 10 degrees
+          step: 10
+          # ticks will be 10 pixels in size
+          size: 10
+          # ticks will be labelled (with a number representing the azimuth)
+          labelled: true
+      # another definition of multiple ticks
+      # these are every 2 degrees, so some will fall on the same azimuths as the previously defined
+      # ones - in such a case, the larger tick takes precedence
+      - Multiple:
+          bias: 0
+          # smaller step - every 2 degrees
+          step: 2
+          # smaller size - so the ticks every 10 degrees will override these ones
+          size: 5
+          # these ones will not be labelled
+          labelled: false
+      # a single tick at azimuth 45
+      - Single:
+          azimuth: 45
+          size: 15
+          labelled: true
+    # whether to show a line representing the eye level (the horizontal direction)
+    show_eye_level: true
 
 # atmosphere structure definition
 # can be either:
