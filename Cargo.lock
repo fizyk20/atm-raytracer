@@ -39,7 +39,7 @@ dependencies = [
 
 [[package]]
 name = "atm-raytracer"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "atm-refraction 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
