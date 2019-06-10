@@ -282,7 +282,7 @@ impl Default for Params {
 
 pub fn parse_params() -> Params {
     let matches = App::new("Atmospheric Panorama Raytracer")
-        .version("0.1")
+        .version("0.3")
         .setting(AppSettings::AllowLeadingHyphen)
         .arg(
             Arg::with_name("terrain")
