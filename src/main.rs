@@ -177,6 +177,21 @@ fn draw_ticks(img: &mut ImageBuffer<Rgb<u8>, Vec<<Rgb<u8> as Pixel>::Subpixel>>,
     }
 }
 
+fn draw_eye_level(
+    img: &mut ImageBuffer<Rgb<u8>, Vec<<Rgb<u8> as Pixel>::Subpixel>>,
+    params: &Params,
+) {
+    if params.output.show_eye_level {
+        let y = params.eye_level_to_y() as f32;
+        draw_line_segment_mut(
+            img,
+            (0.0 as f32, y),
+            (params.output.width as f32, y),
+            Rgb([255, 128, 255]),
+        );
+    }
+}
+
 fn main() {
     let params = params::parse_params();
 
@@ -214,6 +229,7 @@ fn main() {
         });
 
     draw_ticks(&mut img, &params);
+    draw_eye_level(&mut img, &params);
 
     let mut output_file = env::current_dir().unwrap();
     output_file.push(&params.output.file);

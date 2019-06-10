@@ -147,6 +147,7 @@ pub struct ConfOutput {
     width: Option<u16>,
     height: Option<u16>,
     ticks: Option<Vec<Tick>>,
+    show_eye_level: Option<bool>,
 }
 
 #[derive(Clone)]
@@ -155,6 +156,7 @@ pub struct Output {
     pub width: u16,
     pub height: u16,
     pub ticks: Vec<Tick>,
+    pub show_eye_level: bool,
 }
 
 impl ConfOutput {
@@ -164,6 +166,7 @@ impl ConfOutput {
             width: self.width.unwrap_or(640),
             height: self.height.unwrap_or(480),
             ticks: self.ticks.unwrap_or_else(Vec::new),
+            show_eye_level: self.show_eye_level.unwrap_or(false),
         }
     }
 }
@@ -175,6 +178,7 @@ impl Default for Output {
             width: 640,
             height: 480,
             ticks: Vec::new(),
+            show_eye_level: false,
         }
     }
 }
@@ -210,6 +214,14 @@ impl Params {
     pub fn azimuth_to_x(&self, azimuth: f64) -> u32 {
         let x01 = (azimuth - self.view.frame.direction) / self.view.frame.fov + 0.5;
         ((self.output.width as f64) * x01) as u32
+    }
+
+    pub fn eye_level_to_y(&self) -> u32 {
+        let width = self.output.width as f64;
+        let height = self.output.height as f64;
+        let aspect = width / height;
+        let yf = self.view.frame.tilt * aspect / self.view.frame.fov;
+        ((yf + 0.5) * height) as u32
     }
 }
 
