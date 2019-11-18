@@ -81,12 +81,13 @@ pub fn get_single_pixel(
             if ray_state.h < new_elev {
                 let diff1 = ray_elev - elev;
                 let diff2 = ray_state.h - new_elev;
-                let diff_dist = ray_state.x - dist;
                 let prop = diff1 / (diff1 - diff2);
+                let distance = dist + (ray_state.x - dist) * prop;
+                let (lat, lon) = get_coords_at_dist(params, ray_dir, distance);
                 return Some(ResultPixel {
                     lat,
                     lon,
-                    distance: dist + diff_dist * prop,
+                    distance,
                     elevation: elev + (new_elev - elev) * prop,
                 });
             }
