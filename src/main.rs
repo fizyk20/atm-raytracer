@@ -5,7 +5,7 @@ mod terrain;
 #[macro_use]
 extern crate serde_derive;
 
-use crate::generate::{gen_path_cache, get_single_pixel};
+use crate::generate::{gen_path_cache, get_single_pixel, ResultPixel};
 use crate::params::{Params, Tick};
 use crate::terrain::Terrain;
 use image::{ImageBuffer, Pixel, Rgb};
@@ -192,6 +192,25 @@ fn draw_eye_level(
     }
 }
 
+fn output_image(pixels: &Vec<Vec<Option<ResultPixel>>>, params: &Params) {
+    let mut img = ImageBuffer::new(params.output.width as u32, params.output.height as u32);
+    for (x, y, px) in img.enumerate_pixels_mut() {
+        if let Some(pixel) = pixels[y as usize][x as usize] {
+            *px = color_from_elev_dist(&params, pixel.elevation, pixel.distance);
+        } else {
+            *px = Rgb([28, 28, 28]);
+        }
+    }
+
+    draw_ticks(&mut img, &params);
+    draw_eye_level(&mut img, &params);
+
+    let mut output_file = env::current_dir().unwrap();
+    output_file.push(&params.output.file);
+
+    img.save(output_file).unwrap();
+}
+
 fn main() {
     let params = params::parse_params();
 
@@ -210,29 +229,21 @@ fn main() {
         terrain.load_dted(&file_path);
     }
 
-    let mut img = ImageBuffer::new(params.output.width as u32, params.output.height as u32);
-    img.enumerate_rows_mut()
-        .par_bridge()
-        .for_each(|(y, pixels)| {
+    let result_pixels = (0..params.output.height)
+        .into_par_iter()
+        .map(|y| {
             let path_cache = gen_path_cache(&params, &terrain, y as u16);
-            for (x, y, px) in pixels {
+            let mut row = Vec::new();
+            for x in 0..params.output.width {
                 if x == 0 && y % 10 == 0 {
                     println!("x = {}, y = {}", x, y);
                 }
                 let pixel = get_single_pixel(&params, &terrain, x as u16, &path_cache);
-                if let Some(pixel) = pixel {
-                    *px = color_from_elev_dist(&params, pixel.elevation, pixel.distance);
-                } else {
-                    *px = Rgb([28, 28, 28]);
-                }
+                row.push(pixel);
             }
-        });
+            row
+        })
+        .collect::<Vec<_>>();
 
-    draw_ticks(&mut img, &params);
-    draw_eye_level(&mut img, &params);
-
-    let mut output_file = env::current_dir().unwrap();
-    output_file.push(&params.output.file);
-
-    img.save(output_file).unwrap();
+    output_image(&result_pixels, &params);
 }
