@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 
+#[allow(clippy::many_single_char_names)]
 fn hsv(h: f64, s: f64, v: f64) -> Rgb<u8> {
     let c = v * s;
     let h = if h % 360.0 < 0.0 {
@@ -73,7 +74,7 @@ fn color_from_elev_dist(params: &Params, elev: f64, dist: f64) -> Rgb<u8> {
     }
 }
 
-static FONT: &'static [u8] = include_bytes!("DejaVuSans.ttf");
+static FONT: &[u8] = include_bytes!("DejaVuSans.ttf");
 
 struct DrawTick {
     size: u32,
@@ -82,8 +83,8 @@ struct DrawTick {
 }
 
 fn into_draw_ticks(tick: &Tick, params: &Params) -> Vec<(u32, DrawTick)> {
-    match tick {
-        &Tick::Single {
+    match *tick {
+        Tick::Single {
             azimuth,
             size,
             labelled,
@@ -98,7 +99,7 @@ fn into_draw_ticks(tick: &Tick, params: &Params) -> Vec<(u32, DrawTick)> {
                 },
             )]
         }
-        &Tick::Multiple {
+        Tick::Multiple {
             bias,
             step,
             size,
@@ -192,7 +193,7 @@ fn draw_eye_level(
     }
 }
 
-fn output_image(pixels: &Vec<Vec<Option<ResultPixel>>>, params: &Params) {
+fn output_image(pixels: &[Vec<Option<ResultPixel>>], params: &Params) {
     let mut img = ImageBuffer::new(params.output.width as u32, params.output.height as u32);
     for (x, y, px) in img.enumerate_pixels_mut() {
         if let Some(pixel) = pixels[y as usize][x as usize] {

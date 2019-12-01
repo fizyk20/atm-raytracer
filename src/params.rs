@@ -81,7 +81,7 @@ impl ConfFrame {
             direction: self.direction.unwrap_or(0.0),
             tilt: self.tilt.unwrap_or(0.0),
             fov: self.fov.unwrap_or(30.0),
-            max_distance: self.max_distance.unwrap_or(150000.0),
+            max_distance: self.max_distance.unwrap_or(150_000.0),
             water_level: self.water_level.unwrap_or(0.0),
         }
     }
@@ -93,7 +93,7 @@ impl Default for Frame {
             direction: 0.0,
             tilt: 0.0,
             fov: 30.0,
-            max_distance: 150000.0,
+            max_distance: 150_000.0,
             water_level: 0.0,
         }
     }
@@ -243,9 +243,9 @@ impl Config {
         } else {
             us76_atmosphere()
         };
-        let earth_shape = self
-            .earth_shape
-            .unwrap_or(EarthShape::Spherical { radius: 6378000.0 });
+        let earth_shape = self.earth_shape.unwrap_or(EarthShape::Spherical {
+            radius: 6_371_000.0,
+        });
         Params {
             terrain_folder: self
                 .terrain_folder
@@ -274,7 +274,9 @@ impl Default for Params {
             terrain_folder: "./terrain".to_owned(),
             view: Default::default(),
             env: Environment {
-                shape: EarthShape::Spherical { radius: 6378000.0 },
+                shape: EarthShape::Spherical {
+                    radius: 6_371_000.0,
+                },
                 atmosphere: us76_atmosphere(),
             },
             straight_rays: false,
@@ -463,55 +465,52 @@ pub fn parse_params() -> Params {
     }
 
     if let Some(pic_width) = matches.value_of("width") {
-        params.output.width = pic_width.parse().ok().expect("Invalid output width");
+        params.output.width = pic_width.parse().expect("Invalid output width");
     }
 
     if let Some(pic_height) = matches.value_of("height") {
-        params.output.height = pic_height.parse().ok().expect("Invalid output height");
+        params.output.height = pic_height.parse().expect("Invalid output height");
     }
 
     if let Some(lat) = matches.value_of("latitude") {
-        params.view.position.latitude = lat.parse().ok().expect("Invalid viewpoint latitude");
+        params.view.position.latitude = lat.parse().expect("Invalid viewpoint latitude");
     }
 
     if let Some(lon) = matches.value_of("longitude") {
-        params.view.position.longitude = lon.parse().ok().expect("Invalid viewpoint longitude");
+        params.view.position.longitude = lon.parse().expect("Invalid viewpoint longitude");
     }
 
     match (matches.value_of("altitude"), matches.value_of("elevation")) {
         (Some(a), None) => {
             params.view.position.altitude =
-                Altitude::Absolute(a.parse().ok().expect("Invalid viewpoint altitude"));
+                Altitude::Absolute(a.parse().expect("Invalid viewpoint altitude"));
         }
         (None, Some(e)) => {
             params.view.position.altitude =
-                Altitude::Relative(e.parse().ok().expect("Invalid viewpoint elevation"));
+                Altitude::Relative(e.parse().expect("Invalid viewpoint elevation"));
         }
         _ => (),
     };
 
     if let Some(dir) = matches.value_of("direction") {
-        params.view.frame.direction = dir.parse().ok().expect("Invalid viewing azimuth");
+        params.view.frame.direction = dir.parse().expect("Invalid viewing azimuth");
     }
 
     if let Some(fov) = matches.value_of("fov") {
-        params.view.frame.fov = fov.parse().ok().expect("Invalid field of view");
+        params.view.frame.fov = fov.parse().expect("Invalid field of view");
     }
 
     if let Some(tilt) = matches.value_of("tilt") {
-        params.view.frame.tilt = tilt.parse().ok().expect("Invalid view tilt");
+        params.view.frame.tilt = tilt.parse().expect("Invalid view tilt");
     }
 
     if let Some(max_dist) = matches.value_of("max-dist") {
-        params.view.frame.max_distance = max_dist
-            .parse::<f64>()
-            .ok()
-            .expect("Invalid cutoff distance")
-            * 1e3;
+        params.view.frame.max_distance =
+            max_dist.parse::<f64>().expect("Invalid cutoff distance") * 1e3;
     }
 
     if let Some(step) = matches.value_of("step") {
-        params.simulation_step = step.parse().ok().expect("Invalid step value");
+        params.simulation_step = step.parse().expect("Invalid step value");
     }
 
     if let Some(atmosphere) = matches.value_of("atmosphere") {
@@ -524,7 +523,7 @@ pub fn parse_params() -> Params {
             params.env.shape = EarthShape::Flat;
         }
         (false, Some(radius)) => {
-            let r: f64 = radius.parse().ok().expect("Invalid radius passed");
+            let r: f64 = radius.parse().expect("Invalid radius passed");
             params.env.shape = EarthShape::Spherical { radius: r * 1e3 };
         }
         (true, Some(_)) => panic!("Conflicting Earth shape options chosen!"),

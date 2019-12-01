@@ -16,17 +16,14 @@ fn get_ray_elev(params: &Params, y: u16) -> f64 {
     let aspect = width / height;
 
     let y = (y as i16 - params.output.height as i16 / 2) as f64 / height;
-    let ray_elev = params.view.frame.tilt - y * params.view.frame.fov / aspect;
-    ray_elev
+    params.view.frame.tilt - y * params.view.frame.fov / aspect
 }
 
 fn get_ray_dir(params: &Params, x: u16) -> f64 {
     let width = params.output.width as f64;
     let x = (x as i16 - params.output.width as i16 / 2) as f64 / width;
 
-    let ray_dir = params.view.frame.direction + x * params.view.frame.fov;
-
-    ray_dir
+    params.view.frame.direction + x * params.view.frame.fov
 }
 
 pub fn gen_path_cache(params: &Params, terrain: &Terrain, y: u16) -> Vec<RayState> {
@@ -101,12 +98,14 @@ pub fn get_single_pixel(
     None
 }
 
+const DEGREE_DISTANCE: f64 = 111_111.111;
+
 fn get_coords_at_dist(params: &Params, dir: f64, dist: f64) -> (f64, f64) {
     match params.env.shape {
         EarthShape::Flat => {
-            let d_lat = dir.to_radians().cos() * dist / 111111.111;
+            let d_lat = dir.to_radians().cos() * dist / DEGREE_DISTANCE;
             let d_lon = dir.to_radians().sin() * dist
-                / 111111.111
+                / DEGREE_DISTANCE
                 / params.view.position.latitude.to_radians().cos();
             (
                 params.view.position.latitude + d_lat,
