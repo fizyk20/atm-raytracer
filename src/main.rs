@@ -10,12 +10,14 @@ use crate::params::{Params, Tick};
 use crate::terrain::Terrain;
 use image::{ImageBuffer, Pixel, Rgb};
 use imageproc::drawing::{draw_line_segment_mut, draw_text_mut};
+use libflate::gzip::Encoder;
 use rayon::prelude::*;
 use rusttype::{FontCollection, Scale};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::io::Write;
 
 #[allow(clippy::many_single_char_names)]
 fn hsv(h: f64, s: f64, v: f64) -> Rgb<u8> {
@@ -212,6 +214,33 @@ fn output_image(pixels: &[Vec<Option<ResultPixel>>], params: &Params) {
     img.save(output_file).unwrap();
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+struct AllData {
+    params: Params,
+    result: Vec<Vec<Option<ResultPixel>>>,
+}
+
+fn output_metadata(filename: &str, pixels: Vec<Vec<Option<ResultPixel>>>, params: Params) {
+    let mut file = fs::File::create(filename).expect("failed to create a metadata file");
+    let all_data = AllData {
+        params,
+        result: pixels,
+    };
+
+    let all_data_bytes = bincode::serialize(&all_data).expect("failed to serialize metadata");
+    let mut gzip_encoder = Encoder::new(Vec::new()).expect("failed to create a GZip encoder");
+    gzip_encoder
+        .write_all(&all_data_bytes)
+        .expect("failed to deflate metadata");
+    let zipped_data = gzip_encoder
+        .finish()
+        .into_result()
+        .expect("failed to finish deflating metadata");
+
+    file.write_all(&zipped_data)
+        .expect("failed to write metadata to the file");
+}
+
 fn main() {
     let params = params::parse_params();
 
@@ -247,4 +276,8 @@ fn main() {
         .collect::<Vec<_>>();
 
     output_image(&result_pixels, &params);
+
+    if let Some(ref filename) = params.output.file_metadata {
+        output_metadata(filename, result_pixels, params.clone());
+    }
 }

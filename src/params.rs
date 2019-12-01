@@ -30,7 +30,7 @@ pub struct ConfPosition {
     altitude: Option<Altitude>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Position {
     pub latitude: f64,
     pub longitude: f64,
@@ -66,7 +66,7 @@ pub struct ConfFrame {
     water_level: Option<f64>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Frame {
     pub direction: f64,
     pub tilt: f64,
@@ -105,7 +105,7 @@ pub struct ConfView {
     frame: Option<ConfFrame>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize)]
 pub struct View {
     pub position: Position,
     pub frame: Frame,
@@ -151,7 +151,7 @@ pub struct ConfOutput {
     show_eye_level: Option<bool>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Output {
     pub file: String,
     pub file_metadata: Option<String>,
@@ -204,7 +204,7 @@ pub struct Config {
     output: Option<ConfOutput>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Params {
     pub terrain_folder: String,
     pub view: View,

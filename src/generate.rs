@@ -2,7 +2,7 @@ use crate::params::Params;
 use crate::terrain::Terrain;
 use atm_refraction::{EarthShape, RayState};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ResultPixel {
     pub lat: f64,
     pub lon: f64,

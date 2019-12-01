@@ -15,6 +15,8 @@ rusttype = "*"
 serde = "1.0"
 serde_derive = "1.0"
 serde_yaml = "0.8"
+bincode = "1.2"
+libflate = "0.1"
 
 [features]
 default = ["atm-refraction/serialization"]
