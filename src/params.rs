@@ -144,6 +144,7 @@ pub enum Tick {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ConfOutput {
     file: Option<String>,
+    file_metadata: Option<String>,
     width: Option<u16>,
     height: Option<u16>,
     ticks: Option<Vec<Tick>>,
@@ -153,6 +154,7 @@ pub struct ConfOutput {
 #[derive(Clone)]
 pub struct Output {
     pub file: String,
+    pub file_metadata: Option<String>,
     pub width: u16,
     pub height: u16,
     pub ticks: Vec<Tick>,
@@ -163,6 +165,7 @@ impl ConfOutput {
     fn into_output(self) -> Output {
         Output {
             file: self.file.unwrap_or_else(|| "./output.png".to_owned()),
+            file_metadata: self.file_metadata,
             width: self.width.unwrap_or(640),
             height: self.height.unwrap_or(480),
             ticks: self.ticks.unwrap_or_else(Vec::new),
@@ -175,6 +178,7 @@ impl Default for Output {
     fn default() -> Output {
         Output {
             file: "./output.png".to_owned(),
+            file_metadata: None,
             width: 640,
             height: 480,
             ticks: Vec::new(),
@@ -403,6 +407,13 @@ pub fn parse_params() -> Params {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("output-meta")
+                .long("output-meta")
+                .value_name("FILE")
+                .help("File name to save the output metadata as")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("width")
                 .short("w")
                 .long("width")
@@ -446,6 +457,9 @@ pub fn parse_params() -> Params {
     }
     if let Some(output) = matches.value_of("output") {
         params.output.file = output.to_owned();
+    }
+    if let Some(output_metadata) = matches.value_of("output-meta") {
+        params.output.file_metadata = Some(output_metadata.to_owned());
     }
 
     if let Some(pic_width) = matches.value_of("width") {
