@@ -11,6 +11,16 @@ panoramas as they would look if the Earth was flat, as well. Thanks to this feat
 simulate a view of a specific location, compare it to actual photos and see which model fits better
 ;)
 
+### Metadata
+
+In version 0.4, a way of saving metadata was introduced. The metadata consists of the geographical
+coordinates, elevation and distance of each pixel. This data can then be read by a separate program,
+the [panorama reader](https://github.com/fizyk20/panorama-reader), which enables checking each
+pixel's data.
+
+To output the metadata, use the `--output-meta` command line option, or the `file_metadata` config
+file entry.
+
 ## Usage
 
 Typical usage would be:
@@ -21,7 +31,8 @@ Typical usage would be:
 
 * `-c, --config PATH` - path to a YAML config file, defining any of the values described below.
 
-If both a config file and other parameters are supplied, the command line parameters override the values defined in the YAML config.
+If both a config file and other parameters are supplied, the command line parameters override the
+values defined in the YAML config.
 
 * `-t, --terrain PATH` - path to a folder containing files in DTED format
 
@@ -46,6 +57,7 @@ Simulation environment options:
 Output options:
 
 * `-o, --output PATH` - the resulting image will be saved under this name
+* `--output-meta PATH` - metadata will be save in a file under this name
 * `-w, --width PIXELS` - the output image width in pixels
 * `-h, --height PIXELS` - the output image height in pixels
 
@@ -146,6 +158,8 @@ output:
     height: 600
     # location in which the output will be saved
     file: ./output.png
+	# location in which metadata will be saved
+	file_metadata: ./output.dat
     # optional ticks marking the azimuths; multiple definitions are possible
     # a definition is either "Single" - a single tick at a specific azimuth - or "Multiple" -
     # multiple ticks separated by some step, and shifted by some constant ("bias")
