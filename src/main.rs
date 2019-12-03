@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::Write;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[allow(clippy::many_single_char_names)]
 fn hsv(h: f64, s: f64, v: f64) -> Rgb<u8> {
@@ -259,17 +260,21 @@ fn main() {
         terrain.load_dted(&file_path);
     }
 
+    let count_rows = AtomicUsize::new(0);
     let result_pixels = (0..params.output.height)
         .into_par_iter()
         .map(|y| {
             let path_cache = gen_path_cache(&params, &terrain, y as u16);
             let mut row = Vec::new();
             for x in 0..params.output.width {
-                if x == 0 && y % 10 == 0 {
-                    println!("x = {}, y = {}", x, y);
-                }
                 let pixel = get_single_pixel(&params, &terrain, x as u16, &path_cache);
                 row.push(pixel);
+            }
+            let rows_done = count_rows.fetch_add(1, Ordering::SeqCst);
+            let prev_percent = rows_done * 100 / params.output.height as usize;
+            let new_percent = (rows_done + 1) * 100 / params.output.height as usize;
+            if new_percent > prev_percent {
+                println!("{}%...", new_percent);
             }
             row
         })
