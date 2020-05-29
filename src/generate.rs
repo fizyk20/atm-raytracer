@@ -115,30 +115,39 @@ fn get_coords_at_dist(params: &Params, dir: f64, dist: f64) -> (f64, f64) {
             let lat_rad = params.view.position.latitude.to_radians();
             let lon_rad = params.view.position.longitude.to_radians();
 
-            let pos_x = lat_rad.cos() * lon_rad.cos();
-            let pos_y = lat_rad.cos() * lon_rad.sin();
-            let pos_z = lat_rad.sin();
+            let sinlon = lon_rad.sin();
+            let coslon = lon_rad.cos();
+            let sinlat = lat_rad.sin();
+            let coslat = lat_rad.cos();
+
+            let pos_x = coslat * coslon;
+            let pos_y = coslat * sinlon;
+            let pos_z = sinlat;
 
             // vector tangent to Earth's surface pointing north
-            let dirn_x = -lat_rad.sin() * lon_rad.cos();
-            let dirn_y = -lat_rad.sin() * lon_rad.sin();
-            let dirn_z = lat_rad.cos();
+            let dirn_x = -sinlat * coslon;
+            let dirn_y = -sinlat * sinlon;
+            let dirn_z = coslat;
 
             // vector tangent to Earth's surface pointing east
-            let dire_x = -lon_rad.sin();
-            let dire_y = lon_rad.cos();
+            let dire_x = -sinlon;
+            let dire_y = coslon;
             let dire_z = 0.0f64;
 
             // vector tangent to Earth's surface in the given direction
             let dir_rad = dir.to_radians();
-            let dir_x = dirn_x * dir_rad.cos() + dire_x * dir_rad.sin();
-            let dir_y = dirn_y * dir_rad.cos() + dire_y * dir_rad.sin();
-            let dir_z = dirn_z * dir_rad.cos() + dire_z * dir_rad.sin();
+            let sindir = dir_rad.sin();
+            let cosdir = dir_rad.cos();
+            let dir_x = dirn_x * cosdir + dire_x * sindir;
+            let dir_y = dirn_y * cosdir + dire_y * sindir;
+            let dir_z = dirn_z * cosdir + dire_z * sindir;
 
             // final_pos = pos*cos(ang) + dir*sin(ang)
-            let fpos_x = pos_x * ang.cos() + dir_x * ang.sin();
-            let fpos_y = pos_y * ang.cos() + dir_y * ang.sin();
-            let fpos_z = pos_z * ang.cos() + dir_z * ang.sin();
+            let sinang = ang.sin();
+            let cosang = ang.cos();
+            let fpos_x = pos_x * cosang + dir_x * sinang;
+            let fpos_y = pos_y * cosang + dir_y * sinang;
+            let fpos_z = pos_z * cosang + dir_z * sinang;
 
             let final_lat_rad = fpos_z.asin();
             let final_lon_rad = fpos_y.atan2(fpos_x);
