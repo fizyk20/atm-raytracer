@@ -5,7 +5,7 @@ mod terrain;
 #[macro_use]
 extern crate serde_derive;
 
-use crate::generate::{gen_path_cache, get_single_pixel, ResultPixel};
+use crate::generate::{gen_path_cache, gen_terrain_cache, get_single_pixel, ResultPixel};
 use crate::params::{Params, Tick};
 use crate::terrain::Terrain;
 use image::{ImageBuffer, Pixel, Rgb};
@@ -260,29 +260,45 @@ fn main() {
         terrain.load_dted(&file_path);
     }
 
-    let count_rows = AtomicUsize::new(0);
+    println!("Generating terrain cache...");
+    let terrain_cache = (0..params.output.width)
+        .into_par_iter()
+        .map(|x| gen_terrain_cache(&params, &terrain, x as u16))
+        .collect::<Vec<_>>();
+    println!("Generating path cache...");
+    let path_cache = (0..params.output.height)
+        .into_par_iter()
+        .map(|y| gen_path_cache(&params, &terrain, y as u16))
+        .collect::<Vec<_>>();
+
+    println!("Calculating pixels...");
+    let count_pixels = AtomicUsize::new(0);
+    let total_pixels = params.output.width as usize * params.output.height as usize;
     let result_pixels = (0..params.output.height)
         .into_par_iter()
         .map(|y| {
-            let path_cache = gen_path_cache(&params, &terrain, y as u16);
-            let mut row = Vec::new();
-            for x in 0..params.output.width {
-                let pixel = get_single_pixel(&params, &terrain, x as u16, &path_cache);
-                row.push(pixel);
-            }
-            let rows_done = count_rows.fetch_add(1, Ordering::SeqCst);
-            let prev_percent = rows_done * 100 / params.output.height as usize;
-            let new_percent = (rows_done + 1) * 100 / params.output.height as usize;
-            if new_percent > prev_percent {
-                println!("{}%...", new_percent);
-            }
-            row
+            (0..params.output.width)
+                .into_par_iter()
+                .map(|x| {
+                    let pixel =
+                        get_single_pixel(&terrain_cache[x as usize], &path_cache[y as usize]);
+                    let pixels_done = count_pixels.fetch_add(1, Ordering::SeqCst);
+                    let prev_percent = pixels_done * 100 / total_pixels;
+                    let new_percent = (pixels_done + 1) * 100 / total_pixels;
+                    if new_percent > prev_percent {
+                        println!("{}%...", new_percent);
+                    }
+                    pixel
+                })
+                .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
 
+    println!("Outputting image...");
     output_image(&result_pixels, &params);
 
     if let Some(ref filename) = params.output.file_metadata {
+        println!("Outputting metadata...");
         output_metadata(filename, result_pixels, params.clone());
     }
 }

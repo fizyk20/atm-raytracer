@@ -51,36 +51,38 @@ pub fn gen_path_cache(params: &Params, terrain: &Terrain, y: u16) -> Vec<RayStat
     path
 }
 
+pub fn gen_terrain_cache(params: &Params, terrain: &Terrain, x: u16) -> Vec<(f64, f64, f64)> {
+    let dir = get_ray_dir(params, x);
+    let mut distance = 0.0;
+
+    let mut result = vec![];
+    while distance < params.view.frame.max_distance {
+        distance += params.simulation_step;
+        let (lat, lon) = get_coords_at_dist(params, dir, distance);
+        result.push((lat, lon, terrain.get_elev(lat, lon).unwrap_or(0.0)));
+    }
+
+    result
+}
+
 pub fn get_single_pixel(
-    params: &Params,
-    terrain: &Terrain,
-    x: u16,
+    terrain_cache: &[(f64, f64, f64)],
     path_cache: &[RayState],
 ) -> Option<ResultPixel> {
-    let ray_dir = get_ray_dir(params, x);
-
-    let mut elev = terrain
-        .get_elev(
-            params.view.position.latitude,
-            params.view.position.longitude,
-        )
-        .unwrap_or(0.0);
+    let (mut lat, mut lon, mut elev) = terrain_cache[0];
     let mut dist = 0.0;
-    let mut ray_elev = params.view.position.altitude.abs(
-        terrain,
-        params.view.position.latitude,
-        params.view.position.longitude,
-    );
+    let mut ray_elev = path_cache[0].h;
 
-    for ray_state in path_cache {
-        let (lat, lon) = get_coords_at_dist(params, ray_dir, ray_state.x);
-        let new_elev = terrain.get_elev(lat, lon).unwrap_or(0.0);
+    for (&(new_lat, new_lon, new_elev), ray_state) in
+        terrain_cache.into_iter().zip(path_cache).skip(1)
+    {
         if ray_state.h < new_elev {
             let diff1 = ray_elev - elev;
             let diff2 = ray_state.h - new_elev;
             let prop = diff1 / (diff1 - diff2);
             let distance = dist + (ray_state.x - dist) * prop;
-            let (lat, lon) = get_coords_at_dist(params, ray_dir, distance);
+            let lat = lat + (new_lat - lat) * prop;
+            let lon = lon + (new_lon - lon) * prop;
             return Some(ResultPixel {
                 lat,
                 lon,
@@ -88,6 +90,8 @@ pub fn get_single_pixel(
                 elevation: elev + (new_elev - elev) * prop,
             });
         }
+        lat = new_lat;
+        lon = new_lon;
         elev = new_elev;
         dist = ray_state.x;
         ray_elev = ray_state.h;
