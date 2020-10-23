@@ -1,5 +1,7 @@
 use crate::{params::Params, terrain::Terrain};
+
 use atm_refraction::{EarthShape, RayState};
+use nalgebra::Vector3;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ResultPixel {
@@ -123,37 +125,27 @@ fn get_coords_at_dist(params: &Params, dir: f64, dist: f64) -> (f64, f64) {
             let sinlat = lat_rad.sin();
             let coslat = lat_rad.cos();
 
-            let pos_x = coslat * coslon;
-            let pos_y = coslat * sinlon;
-            let pos_z = sinlat;
-
+            let pos = Vector3::new(coslat * coslon, coslat * sinlon, sinlat);
             // vector tangent to Earth's surface pointing north
-            let dirn_x = -sinlat * coslon;
-            let dirn_y = -sinlat * sinlon;
-            let dirn_z = coslat;
-
+            let dirn = Vector3::new(-sinlat * coslon, -sinlat * sinlon, coslat);
             // vector tangent to Earth's surface pointing east
-            let dire_x = -sinlon;
-            let dire_y = coslon;
-            let dire_z = 0.0f64;
+            let dire = Vector3::new(-sinlon, coslon, 0.0);
 
             // vector tangent to Earth's surface in the given direction
             let dir_rad = dir.to_radians();
             let sindir = dir_rad.sin();
             let cosdir = dir_rad.cos();
-            let dir_x = dirn_x * cosdir + dire_x * sindir;
-            let dir_y = dirn_y * cosdir + dire_y * sindir;
-            let dir_z = dirn_z * cosdir + dire_z * sindir;
+
+            let dir = dirn * cosdir + dire * sindir;
 
             // final_pos = pos*cos(ang) + dir*sin(ang)
             let sinang = ang.sin();
             let cosang = ang.cos();
-            let fpos_x = pos_x * cosang + dir_x * sinang;
-            let fpos_y = pos_y * cosang + dir_y * sinang;
-            let fpos_z = pos_z * cosang + dir_z * sinang;
 
-            let final_lat_rad = fpos_z.asin();
-            let final_lon_rad = fpos_y.atan2(fpos_x);
+            let fpos = pos * cosang + dir * sinang;
+
+            let final_lat_rad = fpos[2].asin();
+            let final_lon_rad = fpos[1].atan2(fpos[0]);
 
             (final_lat_rad.to_degrees(), final_lon_rad.to_degrees())
         }
