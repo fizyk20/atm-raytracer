@@ -130,14 +130,30 @@ view:
         max_distance: 200000
         # camera tilt relative to horizontal, in degrees; 1 = tilted one degree up
         tilt: 0
-    # Coloring method: currently only Simple is available
+    # Coloring method: currently two methods are available: Simple and Shading
+    # The Simple method assigns colors to pixels based on their distance and elevation.
+    # The Shading method simulates directional lighting from a defined direction
+    # The Simple method only has one parameter, the water level. An example of the Shading method
+    # is shown below.
     coloring:
-        # simple coloring - with color depending on elevation and distance
-        Simple:
-            # one parameter - the elevation of the water level
+        Shading:
+            # the elevation of the water level
             # this is 0.0 (the sea level) by default, but if there is a lake in the frame instead
             # of the sea, it might be desirable to set this to the elevation of the lake
             water_level: 0.0
+            # the intensity of ambient lighting
+            # if set to 0, only directional lighting is used, and all surfaces reached by light at
+            # an angle of 90 degrees or more will be black
+            # default is 0.4
+            ambient_light: 0.4
+            # the zenith angle of the direction of light; 0.0 means light coming directly from the
+            # zenith, 90.0 means lighting akin to sunrise/sunset (light rays parallel to horizontal)
+            # default is 45.0
+            light_zenith_angle: 50.0
+            # the horizontal direction of light rays; 0.0 means lighting directly from behind the
+            # observer; positive values mean light coming from the right, negative - from the left
+            # default is 0.0
+            light_dir: 10.0
 
 # the shape of the simulated Earth
 # can be either of:
