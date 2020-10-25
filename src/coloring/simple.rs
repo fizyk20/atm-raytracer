@@ -4,6 +4,7 @@ use crate::generate::ResultPixel;
 
 use image::Rgb;
 
+#[derive(Debug, Clone, Copy)]
 pub struct SimpleColors {
     max_distance: f64,
     water_level: f64,

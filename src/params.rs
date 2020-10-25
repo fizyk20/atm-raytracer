@@ -1,13 +1,17 @@
+use std::{env, fs::File, io::Read};
+
 use crate::{
-    coloring::{ColoringMethod, SimpleColors},
+    coloring::{ColoringMethod, Shading, SimpleColors},
     terrain::Terrain,
+    utils::world_directions,
 };
+
 use atm_refraction::{
     air::{atm_from_str, get_atmosphere, us76_atmosphere},
     EarthShape, Environment,
 };
 use clap::{App, AppSettings, Arg};
-use std::{env, fs::File, io::Read};
+use nalgebra::Vector3;
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum Altitude {
@@ -98,21 +102,67 @@ impl Default for Frame {
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum ConfColoring {
-    Simple { water_level: f64 },
+    Simple {
+        water_level: Option<f64>,
+    },
+    Shading {
+        water_level: Option<f64>,
+        ambient_light: Option<f64>,
+        light_zenith_angle: Option<f64>,
+        light_dir: Option<f64>,
+    },
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum Coloring {
-    Simple { water_level: f64, max_distance: f64 },
+    Simple {
+        water_level: f64,
+        max_distance: f64,
+    },
+    Shading {
+        water_level: f64,
+        ambient_light: f64,
+        light_dir: Vector3<f64>,
+    },
 }
 
 impl ConfColoring {
-    pub fn into_coloring(self, frame: &Frame) -> Coloring {
+    pub fn into_coloring(
+        self,
+        frame: &Frame,
+        position: &Position,
+        earth_shape: &EarthShape,
+    ) -> Coloring {
         match self {
             ConfColoring::Simple { water_level } => Coloring::Simple {
-                water_level,
+                water_level: water_level.unwrap_or(0.0),
                 max_distance: frame.max_distance,
             },
+            ConfColoring::Shading {
+                water_level,
+                ambient_light,
+                light_zenith_angle,
+                light_dir,
+            } => {
+                let water_level = water_level.unwrap_or(0.0);
+                let ambient_light = ambient_light.unwrap_or(0.4);
+                let light_zenith_angle = light_zenith_angle.unwrap_or(45.0).to_radians();
+                let light_dir = light_dir.unwrap_or(0.0).to_radians();
+                let (dir_north, dir_east, dir_up) =
+                    world_directions(earth_shape, position.latitude, position.longitude);
+                let front_azimuth = frame.direction.to_radians();
+                let dir_front = dir_north * front_azimuth.cos() + dir_east * front_azimuth.sin();
+                let dir_right = dir_east * front_azimuth.cos() - dir_north * front_azimuth.sin();
+                let light_dir = (-dir_front * light_zenith_angle.sin() * light_dir.cos()
+                    + dir_right * light_zenith_angle.sin() * light_dir.sin()
+                    + dir_up * light_zenith_angle.cos())
+                .normalize();
+                Coloring::Shading {
+                    water_level,
+                    ambient_light,
+                    light_dir,
+                }
+            }
         }
     }
 }
@@ -126,11 +176,16 @@ impl Coloring {
     }
 
     pub fn coloring_method(&self) -> Box<dyn ColoringMethod> {
-        match self {
+        match *self {
             Coloring::Simple {
                 water_level,
                 max_distance,
-            } => Box::new(SimpleColors::new(*max_distance, *water_level)),
+            } => Box::new(SimpleColors::new(max_distance, water_level)),
+            Coloring::Shading {
+                water_level,
+                ambient_light,
+                light_dir,
+            } => Box::new(Shading::new(water_level, ambient_light, light_dir)),
         }
     }
 }
@@ -150,20 +205,21 @@ pub struct View {
 }
 
 impl ConfView {
-    pub fn into_view(self) -> View {
+    pub fn into_view(self, earth_shape: &EarthShape) -> View {
         let frame = self
             .frame
             .map(ConfFrame::into_frame)
             .unwrap_or_else(Default::default);
+        let position = self
+            .position
+            .map(ConfPosition::into_position)
+            .unwrap_or_else(Default::default);
         let coloring = self
             .coloring
-            .map(|coloring| coloring.into_coloring(&frame))
+            .map(|conf_coloring| conf_coloring.into_coloring(&frame, &position, earth_shape))
             .unwrap_or_else(|| Coloring::default_coloring(&frame));
         View {
-            position: self
-                .position
-                .map(ConfPosition::into_position)
-                .unwrap_or_else(Default::default),
+            position,
             frame,
             coloring,
         }
@@ -309,7 +365,7 @@ impl Config {
                 .unwrap_or_else(|| "./terrain".to_owned()),
             view: self
                 .view
-                .map(ConfView::into_view)
+                .map(|conf_view| conf_view.into_view(&earth_shape))
                 .unwrap_or_else(Default::default),
             env: Environment {
                 shape: earth_shape,

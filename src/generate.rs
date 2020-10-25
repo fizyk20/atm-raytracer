@@ -1,4 +1,4 @@
-use crate::{params::Params, terrain::Terrain};
+use crate::{params::Params, terrain::Terrain, utils::world_directions};
 
 use atm_refraction::{EarthShape, RayState};
 use nalgebra::Vector3;
@@ -69,30 +69,7 @@ fn find_normal(shape: &EarthShape, lat: f64, lon: f64, terrain: &Terrain) -> Vec
     let p_east = get_coords_at_dist(shape, (lat, lon), 90.0, DIFF);
     let p_west = get_coords_at_dist(shape, (lat, lon), 270.0, DIFF);
 
-    let (dir_north, dir_east, dir_up) = match shape {
-        EarthShape::Flat => (
-            Vector3::new(0.0, 1.0, 0.0),
-            Vector3::new(1.0, 0.0, 0.0),
-            Vector3::new(0.0, 0.0, 1.0),
-        ),
-        EarthShape::Spherical { .. } => {
-            let lat_rad = lat.to_radians();
-            let lon_rad = lon.to_radians();
-
-            let sinlon = lon_rad.sin();
-            let coslon = lon_rad.cos();
-            let sinlat = lat_rad.sin();
-            let coslat = lat_rad.cos();
-
-            let pos = Vector3::new(coslat * coslon, coslat * sinlon, sinlat);
-            // vector tangent to Earth's surface pointing north
-            let dirn = Vector3::new(-sinlat * coslon, -sinlat * sinlon, coslat);
-            // vector tangent to Earth's surface pointing east
-            let dire = Vector3::new(-sinlon, coslon, 0.0);
-
-            (dirn, dire, pos)
-        }
-    };
+    let (dir_north, dir_east, dir_up) = world_directions(shape, lat, lon);
 
     let diff_ew = terrain.get_elev(p_east.0, p_east.1).unwrap_or(0.0)
         - terrain.get_elev(p_west.0, p_west.1).unwrap_or(0.0);
@@ -189,19 +166,7 @@ fn get_coords_at_dist(shape: &EarthShape, start: (f64, f64), dir: f64, dist: f64
         EarthShape::Spherical { radius } => {
             let ang = dist / radius;
 
-            let lat_rad = start.0.to_radians();
-            let lon_rad = start.1.to_radians();
-
-            let sinlon = lon_rad.sin();
-            let coslon = lon_rad.cos();
-            let sinlat = lat_rad.sin();
-            let coslat = lat_rad.cos();
-
-            let pos = Vector3::new(coslat * coslon, coslat * sinlon, sinlat);
-            // vector tangent to Earth's surface pointing north
-            let dirn = Vector3::new(-sinlat * coslon, -sinlat * sinlon, coslat);
-            // vector tangent to Earth's surface pointing east
-            let dire = Vector3::new(-sinlon, coslon, 0.0);
+            let (dirn, dire, pos) = world_directions(shape, start.0, start.1);
 
             // vector tangent to Earth's surface in the given direction
             let dir_rad = dir.to_radians();

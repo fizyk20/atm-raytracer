@@ -2,6 +2,7 @@ mod coloring;
 mod generate;
 mod params;
 mod terrain;
+mod utils;
 
 #[macro_use]
 extern crate serde_derive;
