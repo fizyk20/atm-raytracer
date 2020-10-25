@@ -1,6 +1,5 @@
 use dted::{read_dted, DtedData};
-use std::collections::HashMap;
-use std::path::Path;
+use std::{collections::HashMap, path::Path};
 
 pub struct Terrain {
     data: HashMap<(i16, i16), DtedData>,

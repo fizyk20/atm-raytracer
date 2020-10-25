@@ -1,5 +1,4 @@
-use crate::params::Params;
-use crate::terrain::Terrain;
+use crate::{params::Params, terrain::Terrain};
 use atm_refraction::{EarthShape, RayState};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

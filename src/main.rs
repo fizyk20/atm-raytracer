@@ -5,20 +5,22 @@ mod terrain;
 #[macro_use]
 extern crate serde_derive;
 
-use crate::generate::{gen_path_cache, gen_terrain_cache, get_single_pixel, ResultPixel};
-use crate::params::{Params, Tick};
-use crate::terrain::Terrain;
+use crate::{
+    generate::{gen_path_cache, gen_terrain_cache, get_single_pixel, ResultPixel},
+    params::{Params, Tick},
+    terrain::Terrain,
+};
 use image::{ImageBuffer, Pixel, Rgb};
 use imageproc::drawing::{draw_line_segment_mut, draw_text_mut};
 use libflate::gzip::Encoder;
 use rayon::prelude::*;
 use rusttype::{FontCollection, Scale};
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::env;
-use std::fs;
-use std::io::Write;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    env, fs,
+    io::Write,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 #[allow(clippy::many_single_char_names)]
 fn hsv(h: f64, s: f64, v: f64) -> Rgb<u8> {

@@ -4,9 +4,7 @@ use atm_refraction::{
     EarthShape, Environment,
 };
 use clap::{App, AppSettings, Arg};
-use std::env;
-use std::fs::File;
-use std::io::Read;
+use std::{env, fs::File, io::Read};
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum Altitude {
