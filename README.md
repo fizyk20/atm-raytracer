@@ -130,6 +130,14 @@ view:
         max_distance: 200000
         # camera tilt relative to horizontal, in degrees; 1 = tilted one degree up
         tilt: 0
+    # Coloring method: currently only Simple is available
+    coloring:
+        # simple coloring - with color depending on elevation and distance
+        Simple:
+            # one parameter - the elevation of the water level
+            # this is 0.0 (the sea level) by default, but if there is a lake in the frame instead
+            # of the sea, it might be desirable to set this to the elevation of the lake
+            water_level: 0.0
 
 # the shape of the simulated Earth
 # can be either of:
@@ -158,8 +166,8 @@ output:
     height: 600
     # location in which the output will be saved
     file: ./output.png
-	# location in which metadata will be saved
-	file_metadata: ./output.dat
+    # location in which metadata will be saved
+    file_metadata: ./output.dat
     # optional ticks marking the azimuths; multiple definitions are possible
     # a definition is either "Single" - a single tick at a specific azimuth - or "Multiple" -
     # multiple ticks separated by some step, and shifted by some constant ("bias")

@@ -1,4 +1,7 @@
-use crate::terrain::Terrain;
+use crate::{
+    coloring::{ColoringMethod, SimpleColors},
+    terrain::Terrain,
+};
 use atm_refraction::{
     air::{atm_from_str, get_atmosphere, us76_atmosphere},
     EarthShape, Environment,
@@ -61,7 +64,6 @@ pub struct ConfFrame {
     tilt: Option<f64>,
     fov: Option<f64>,
     max_distance: Option<f64>,
-    water_level: Option<f64>,
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -70,7 +72,6 @@ pub struct Frame {
     pub tilt: f64,
     pub fov: f64,
     pub max_distance: f64,
-    pub water_level: f64,
 }
 
 impl ConfFrame {
@@ -80,7 +81,6 @@ impl ConfFrame {
             tilt: self.tilt.unwrap_or(0.0),
             fov: self.fov.unwrap_or(30.0),
             max_distance: self.max_distance.unwrap_or(150_000.0),
-            water_level: self.water_level.unwrap_or(0.0),
         }
     }
 }
@@ -92,7 +92,45 @@ impl Default for Frame {
             tilt: 0.0,
             fov: 30.0,
             max_distance: 150_000.0,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub enum ConfColoring {
+    Simple { water_level: f64 },
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub enum Coloring {
+    Simple { water_level: f64, max_distance: f64 },
+}
+
+impl ConfColoring {
+    pub fn into_coloring(self, frame: &Frame) -> Coloring {
+        match self {
+            ConfColoring::Simple { water_level } => Coloring::Simple {
+                water_level,
+                max_distance: frame.max_distance,
+            },
+        }
+    }
+}
+
+impl Coloring {
+    fn default_coloring(frame: &Frame) -> Coloring {
+        Coloring::Simple {
             water_level: 0.0,
+            max_distance: frame.max_distance,
+        }
+    }
+
+    pub fn coloring_method(&self) -> Box<dyn ColoringMethod> {
+        match self {
+            Coloring::Simple {
+                water_level,
+                max_distance,
+            } => Box::new(SimpleColors::new(*max_distance, *water_level)),
         }
     }
 }
@@ -101,25 +139,46 @@ impl Default for Frame {
 pub struct ConfView {
     position: Option<ConfPosition>,
     frame: Option<ConfFrame>,
+    coloring: Option<ConfColoring>,
 }
 
-#[derive(Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct View {
     pub position: Position,
     pub frame: Frame,
+    pub coloring: Coloring,
 }
 
 impl ConfView {
     pub fn into_view(self) -> View {
+        let frame = self
+            .frame
+            .map(ConfFrame::into_frame)
+            .unwrap_or_else(Default::default);
+        let coloring = self
+            .coloring
+            .map(|coloring| coloring.into_coloring(&frame))
+            .unwrap_or_else(|| Coloring::default_coloring(&frame));
         View {
             position: self
                 .position
                 .map(ConfPosition::into_position)
                 .unwrap_or_else(Default::default),
-            frame: self
-                .frame
-                .map(ConfFrame::into_frame)
-                .unwrap_or_else(Default::default),
+            frame,
+            coloring,
+        }
+    }
+}
+
+impl Default for View {
+    fn default() -> Self {
+        let frame = Frame::default();
+        let position = Position::default();
+        let coloring = Coloring::default_coloring(&frame);
+        View {
+            frame,
+            position,
+            coloring,
         }
     }
 }

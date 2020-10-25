@@ -1,3 +1,4 @@
+mod coloring;
 mod generate;
 mod params;
 mod terrain;
@@ -21,63 +22,6 @@ use std::{
     io::Write,
     sync::atomic::{AtomicUsize, Ordering},
 };
-
-#[allow(clippy::many_single_char_names)]
-fn hsv(h: f64, s: f64, v: f64) -> Rgb<u8> {
-    let c = v * s;
-    let h = if h % 360.0 < 0.0 {
-        h % 360.0 + 360.0
-    } else {
-        h % 360.0
-    };
-    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
-    let m = v - c;
-    let (rp, gp, bp) = if h >= 0.0 && h < 60.0 {
-        (c, x, 0.0)
-    } else if h >= 60.0 && h < 120.0 {
-        (x, c, 0.0)
-    } else if h >= 120.0 && h < 180.0 {
-        (0.0, c, x)
-    } else if h >= 180.0 && h < 240.0 {
-        (0.0, x, c)
-    } else if h >= 240.0 && h < 300.0 {
-        (x, 0.0, c)
-    } else if h >= 300.0 && h < 360.0 {
-        (c, 0.0, x)
-    } else {
-        unreachable!();
-    };
-
-    Rgb([
-        ((rp + m) * 255.0) as u8,
-        ((gp + m) * 255.0) as u8,
-        ((bp + m) * 255.0) as u8,
-    ])
-}
-
-fn color_from_elev_dist(params: &Params, elev: f64, dist: f64) -> Rgb<u8> {
-    let dist_ratio = dist / params.view.frame.max_distance;
-    if elev <= params.view.frame.water_level {
-        let mul = 1.0 - dist_ratio * 0.6;
-        Rgb([0, (128.0 * mul) as u8, (255.0 * mul) as u8])
-    } else {
-        let elev_ratio = elev / 4500.0;
-        let h = 120.0
-            - 240.0
-                * if elev_ratio < 0.0 {
-                    -(-elev_ratio).powf(0.65)
-                } else {
-                    elev_ratio.powf(0.65)
-                };
-        let v = if elev_ratio > 0.7 {
-            2.1 - elev_ratio * 2.0
-        } else {
-            0.9 - elev_ratio / 0.7 * 0.2
-        } * (1.0 - dist_ratio * 0.6);
-        let s = 1.0 - dist_ratio * 0.9;
-        hsv(h, s, v)
-    }
-}
 
 static FONT: &[u8] = include_bytes!("DejaVuSans.ttf");
 
@@ -200,9 +144,10 @@ fn draw_eye_level(
 
 fn output_image(pixels: &[Vec<Option<ResultPixel>>], params: &Params) {
     let mut img = ImageBuffer::new(params.output.width as u32, params.output.height as u32);
+    let coloring = params.view.coloring.coloring_method();
     for (x, y, px) in img.enumerate_pixels_mut() {
         if let Some(pixel) = pixels[y as usize][x as usize] {
-            *px = color_from_elev_dist(&params, pixel.elevation, pixel.distance);
+            *px = coloring.color_for_pixel(&pixel);
         } else {
             *px = Rgb([28, 28, 28]);
         }
