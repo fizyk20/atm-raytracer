@@ -143,15 +143,35 @@ fn draw_eye_level(
     }
 }
 
+fn fog(fog_dist: f64, pixel_dist: f64, color: Rgb<u8>) -> Rgb<u8> {
+    let fog_coeff = 1.0 - (-pixel_dist / fog_dist).exp();
+    let fog_color = Rgb([160u8, 160, 160]);
+    let mut new_color = Rgb([0u8; 3]);
+    for i in 0..3 {
+        new_color.0[i] =
+            (color.0[i] as f64 * (1.0 - fog_coeff) + fog_color.0[i] as f64 * fog_coeff) as u8;
+    }
+    new_color
+}
+
 fn output_image(pixels: &[Vec<Option<ResultPixel>>], params: &Params) {
     let mut img = ImageBuffer::new(params.output.width as u32, params.output.height as u32);
     let coloring = params.view.coloring.coloring_method();
     for (x, y, px) in img.enumerate_pixels_mut() {
         if let Some(pixel) = pixels[y as usize][x as usize] {
-            *px = coloring.color_for_pixel(&pixel);
+            let color = coloring.color_for_pixel(&pixel);
+            if let Some(fog_dist) = params.view.fog_distance {
+                *px = fog(fog_dist, pixel.path_length, color);
+            } else {
+                *px = color;
+            }
         } else {
-            *px = Rgb([28, 28, 28]);
-        }
+            if params.view.fog_distance.is_some() {
+                *px = Rgb([160, 160, 160]);
+            } else {
+                *px = Rgb([28, 28, 28]);
+            }
+        };
     }
 
     draw_ticks(&mut img, &params);

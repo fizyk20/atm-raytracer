@@ -9,7 +9,15 @@ pub struct ResultPixel {
     pub lon: f64,
     pub distance: f64,
     pub elevation: f64,
+    pub path_length: f64,
     pub normal: Vector3<f64>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PathElem {
+    pub dist: f64,
+    pub elev: f64,
+    pub path_length: f64,
 }
 
 fn get_ray_elev(params: &Params, y: u16) -> f64 {
@@ -28,7 +36,20 @@ fn get_ray_dir(params: &Params, x: u16) -> f64 {
     params.view.frame.direction + x * params.view.frame.fov
 }
 
-pub fn gen_path_cache(params: &Params, terrain: &Terrain, y: u16) -> Vec<RayState> {
+fn calc_dist(params: &Params, old_state: RayState, new_state: RayState) -> f64 {
+    let dx = new_state.x - old_state.x;
+    let dh = new_state.h - old_state.h;
+    match params.env.shape {
+        EarthShape::Flat => (dx * dx + dh * dh).sqrt(),
+        EarthShape::Spherical { radius } => {
+            let avg_h = (new_state.h + old_state.h) / 2.0;
+            let dx = dx / radius * (avg_h + radius);
+            (dx * dx + dh * dh).sqrt()
+        }
+    }
+}
+
+pub fn gen_path_cache(params: &Params, terrain: &Terrain, y: u16) -> Vec<PathElem> {
     let ray_elev = get_ray_elev(params, y);
     let alt = params.view.position.altitude.abs(
         terrain,
@@ -40,14 +61,26 @@ pub fn gen_path_cache(params: &Params, terrain: &Terrain, y: u16) -> Vec<RayStat
         .cast_ray_stepper(alt, ray_elev.to_radians(), params.straight_rays);
     ray.set_step_size(params.simulation_step);
 
-    let mut path = vec![];
+    let mut path = vec![PathElem {
+        dist: 0.0,
+        elev: alt,
+        path_length: 0.0,
+    }];
+    let mut ray_state = ray.next().unwrap();
+    let mut path_length = 0.0;
 
     loop {
-        let ray_state = ray.next().unwrap();
-        path.push(ray_state);
+        let new_ray_state = ray.next().unwrap();
+        path_length += calc_dist(params, ray_state, new_ray_state);
+        path.push(PathElem {
+            dist: ray_state.x,
+            elev: ray_state.h,
+            path_length,
+        });
         if ray_state.x > params.view.frame.max_distance {
             break;
         }
+        ray_state = new_ray_state;
     }
 
     path
@@ -115,7 +148,7 @@ pub fn gen_terrain_cache(params: &Params, terrain: &Terrain, x: u16) -> Vec<Terr
 
 pub fn get_single_pixel(
     terrain_cache: &[TerrainData],
-    path_cache: &[RayState],
+    path_cache: &[PathElem],
 ) -> Option<ResultPixel> {
     let TerrainData {
         mut lat,
@@ -124,14 +157,17 @@ pub fn get_single_pixel(
         mut normal,
     } = terrain_cache[0];
     let mut dist = 0.0;
-    let mut ray_elev = path_cache[0].h;
+    let mut path_len = 0.0;
+    let mut ray_elev = path_cache[0].elev;
 
-    for (terrain_data, ray_state) in terrain_cache.into_iter().zip(path_cache).skip(1) {
-        if ray_state.h < terrain_data.elev {
+    for (terrain_data, path_elem) in terrain_cache.into_iter().zip(path_cache).skip(1) {
+        if path_elem.elev < terrain_data.elev {
             let diff1 = ray_elev - elev;
-            let diff2 = ray_state.h - terrain_data.elev;
+            let diff2 = path_elem.elev - terrain_data.elev;
             let prop = diff1 / (diff1 - diff2);
-            let distance = dist + (ray_state.x - dist) * prop;
+            let distance = dist + (path_elem.dist - dist) * prop;
+            let elevation = elev + (terrain_data.elev - elev) * prop;
+            let path_length = path_len + (path_elem.path_length - path_len) * prop;
             let lat = lat + (terrain_data.lat - lat) * prop;
             let lon = lon + (terrain_data.lon - lon) * prop;
             let normal = normal + (terrain_data.normal - normal) * prop;
@@ -139,7 +175,8 @@ pub fn get_single_pixel(
                 lat,
                 lon,
                 distance,
-                elevation: elev + (terrain_data.elev - elev) * prop,
+                elevation,
+                path_length,
                 normal,
             });
         }
@@ -147,8 +184,9 @@ pub fn get_single_pixel(
         lon = terrain_data.lon;
         elev = terrain_data.elev;
         normal = terrain_data.normal;
-        dist = ray_state.x;
-        ray_elev = ray_state.h;
+        dist = path_elem.dist;
+        ray_elev = path_elem.elev;
+        path_len = path_elem.path_length;
     }
     None
 }
