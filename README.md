@@ -154,6 +154,9 @@ view:
             # observer; positive values mean light coming from the right, negative - from the left
             # default is 0.0
             light_dir: 10.0
+    # The characteristic distance of the fog. Light is attenuated by a factor of e every such
+    # distance from the observer. If omitted, there is no fog (infinite distance).
+    fog_distance: 100000
 
 # the shape of the simulated Earth
 # can be either of:

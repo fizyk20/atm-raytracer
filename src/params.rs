@@ -195,6 +195,7 @@ pub struct ConfView {
     position: Option<ConfPosition>,
     frame: Option<ConfFrame>,
     coloring: Option<ConfColoring>,
+    fog_distance: Option<f64>,
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -202,6 +203,7 @@ pub struct View {
     pub position: Position,
     pub frame: Frame,
     pub coloring: Coloring,
+    pub fog_distance: Option<f64>,
 }
 
 impl ConfView {
@@ -222,6 +224,7 @@ impl ConfView {
             position,
             frame,
             coloring,
+            fog_distance: self.fog_distance,
         }
     }
 }
@@ -235,6 +238,7 @@ impl Default for View {
             frame,
             position,
             coloring,
+            fog_distance: None,
         }
     }
 }
