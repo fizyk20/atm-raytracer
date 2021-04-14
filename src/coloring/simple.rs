@@ -55,17 +55,17 @@ fn hsv(h: f64, s: f64, v: f64) -> Rgb<u8> {
     };
     let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
     let m = v - c;
-    let (rp, gp, bp) = if h >= 0.0 && h < 60.0 {
+    let (rp, gp, bp) = if (0.0..60.0).contains(&h) {
         (c, x, 0.0)
-    } else if h >= 60.0 && h < 120.0 {
+    } else if (60.0..120.0).contains(&h) {
         (x, c, 0.0)
-    } else if h >= 120.0 && h < 180.0 {
+    } else if (120.0..180.0).contains(&h) {
         (0.0, c, x)
-    } else if h >= 180.0 && h < 240.0 {
+    } else if (180.0..240.0).contains(&h) {
         (0.0, x, c)
-    } else if h >= 240.0 && h < 300.0 {
+    } else if (240.0..300.0).contains(&h) {
         (x, 0.0, c)
-    } else if h >= 300.0 && h < 360.0 {
+    } else if (300.0..360.0).contains(&h) {
         (c, 0.0, x)
     } else {
         unreachable!();

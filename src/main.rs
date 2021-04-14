@@ -136,7 +136,7 @@ fn draw_eye_level(
         let y = params.eye_level_to_y() as f32;
         draw_line_segment_mut(
             img,
-            (0.0 as f32, y),
+            (0.0_f32, y),
             (params.output.width as f32, y),
             Rgb([255, 128, 255]),
         );
@@ -165,12 +165,10 @@ fn output_image(pixels: &[Vec<Option<ResultPixel>>], params: &Params) {
             } else {
                 *px = color;
             }
+        } else if params.view.fog_distance.is_some() {
+            *px = Rgb([160, 160, 160]);
         } else {
-            if params.view.fog_distance.is_some() {
-                *px = Rgb([160, 160, 160]);
-            } else {
-                *px = Rgb([28, 28, 28]);
-            }
+            *px = Rgb([28, 28, 28]);
         };
     }
 

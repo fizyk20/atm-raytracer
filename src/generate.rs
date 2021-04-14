@@ -160,7 +160,7 @@ pub fn get_single_pixel(
     let mut path_len = 0.0;
     let mut ray_elev = path_cache[0].elev;
 
-    for (terrain_data, path_elem) in terrain_cache.into_iter().zip(path_cache).skip(1) {
+    for (terrain_data, path_elem) in terrain_cache.iter().zip(path_cache).skip(1) {
         if path_elem.elev < terrain_data.elev {
             let diff1 = ray_elev - elev;
             let diff2 = path_elem.elev - terrain_data.elev;
