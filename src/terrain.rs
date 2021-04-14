@@ -1,5 +1,5 @@
 use dted::{read_dted, DtedData};
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 
 pub struct Terrain {
     data: HashMap<(i16, i16), DtedData>,
@@ -10,6 +10,22 @@ impl Terrain {
         Terrain {
             data: HashMap::new(),
         }
+    }
+
+    pub fn from_folder<P: AsRef<Path>>(terrain_folder: P) -> Self {
+        let mut terrain = Self::new();
+
+        for dir_entry in
+            fs::read_dir(terrain_folder).expect("Error opening the terrain data directory")
+        {
+            let file_path = dir_entry
+                .expect("Error reading an entry in the terrain directory")
+                .path();
+            println!("Loading terrain file: {:?}", file_path);
+            terrain.load_dted(&file_path);
+        }
+
+        terrain
     }
 
     pub fn load_dted<P: AsRef<Path>>(&mut self, path: P) {
