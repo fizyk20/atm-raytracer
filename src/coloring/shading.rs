@@ -1,6 +1,6 @@
 use super::ColoringMethod;
 
-use crate::generate::ResultPixel;
+use crate::generate::{PixelColor, ResultPixel};
 
 use image::Rgb;
 use nalgebra::Vector3;
@@ -57,7 +57,9 @@ impl ColoringMethod for Shading {
     fn color_for_pixel(&self, pixel: &ResultPixel) -> Rgb<u8> {
         let brightness = self.calc_brightness(pixel.normal);
 
-        let color = if pixel.elevation <= self.water_level {
+        let color = if let PixelColor::Rgb(color) = pixel.color {
+            Vector3::new(color.r, color.g, color.b)
+        } else if pixel.elevation <= self.water_level {
             Vector3::new(0.0, 0.5, 1.0)
         } else {
             Self::elev_to_color(pixel.elevation)

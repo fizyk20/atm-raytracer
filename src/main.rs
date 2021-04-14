@@ -1,5 +1,6 @@
 mod coloring;
 mod generate;
+mod object;
 mod params;
 mod terrain;
 mod utils;
@@ -209,14 +210,23 @@ fn output_metadata(filename: &str, pixels: Vec<Vec<Option<ResultPixel>>>, params
 }
 
 fn main() {
-    let params = params::parse_params();
+    let mut params = params::parse_params();
 
     let mut terrain_folder = env::current_dir().unwrap();
-    terrain_folder.push(&params.terrain_folder);
+    terrain_folder.push(&params.scene.terrain_folder);
 
     println!("Using terrain data directory: {:?}", terrain_folder);
 
     let terrain = Terrain::from_folder(terrain_folder);
+
+    // Convert object altitudes to absolute
+    for object in &mut params.scene.objects {
+        object.position.altitude.convert_into_absolute(
+            &terrain,
+            object.position.latitude,
+            object.position.longitude,
+        );
+    }
 
     println!("Generating terrain cache...");
     let terrain_cache = (0..params.output.width)
@@ -238,8 +248,12 @@ fn main() {
             (0..params.output.width)
                 .into_par_iter()
                 .map(|x| {
-                    let pixel =
-                        get_single_pixel(&terrain_cache[x as usize], &path_cache[y as usize]);
+                    let pixel = get_single_pixel(
+                        &terrain_cache[x as usize],
+                        &path_cache[y as usize],
+                        &params.scene.objects,
+                        &params.env.shape,
+                    );
                     let pixels_done = count_pixels.fetch_add(1, Ordering::SeqCst);
                     let prev_percent = pixels_done * 100 / total_pixels;
                     let new_percent = (pixels_done + 1) * 100 / total_pixels;

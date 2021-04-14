@@ -1,7 +1,18 @@
-use crate::{params::Params, terrain::Terrain, utils::world_directions};
+use crate::{
+    object::{Color, Object},
+    params::Params,
+    terrain::Terrain,
+    utils::world_directions,
+};
 
 use atm_refraction::{EarthShape, RayState};
 use nalgebra::Vector3;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum PixelColor {
+    Terrain,
+    Rgb(Color),
+}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ResultPixel {
@@ -11,6 +22,7 @@ pub struct ResultPixel {
     pub elevation: f64,
     pub path_length: f64,
     pub normal: Vector3<f64>,
+    pub color: PixelColor,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -149,6 +161,8 @@ pub fn gen_terrain_cache(params: &Params, terrain: &Terrain, x: u16) -> Vec<Terr
 pub fn get_single_pixel(
     terrain_cache: &[TerrainData],
     path_cache: &[PathElem],
+    objects: &[Object],
+    earth_shape: &EarthShape,
 ) -> Option<ResultPixel> {
     let TerrainData {
         mut lat,
@@ -178,7 +192,34 @@ pub fn get_single_pixel(
                 elevation,
                 path_length,
                 normal,
+                color: PixelColor::Terrain,
             });
+        }
+        for object in objects {
+            if let Some((prop, normal, color)) = object.check_collision(
+                earth_shape,
+                lat,
+                terrain_data.lat,
+                lon,
+                terrain_data.lon,
+                ray_elev,
+                path_elem.elev,
+            ) {
+                let distance = dist + (path_elem.dist - dist) * prop;
+                let elevation = elev + (terrain_data.elev - elev) * prop;
+                let path_length = path_len + (path_elem.path_length - path_len) * prop;
+                let lat = lat + (terrain_data.lat - lat) * prop;
+                let lon = lon + (terrain_data.lon - lon) * prop;
+                return Some(ResultPixel {
+                    lat,
+                    lon,
+                    distance,
+                    elevation,
+                    path_length,
+                    normal,
+                    color: PixelColor::Rgb(color),
+                });
+            }
         }
         lat = terrain_data.lat;
         lon = terrain_data.lon;

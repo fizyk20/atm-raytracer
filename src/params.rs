@@ -2,6 +2,7 @@ use std::{env, fs::File, io::Read};
 
 use crate::{
     coloring::{ColoringMethod, Shading, SimpleColors},
+    object::Object,
     terrain::Terrain,
     utils::world_directions,
 };
@@ -24,6 +25,22 @@ impl Altitude {
         match *self {
             Altitude::Absolute(x) => x,
             Altitude::Relative(x) => terrain.get_elev(lat, lon).unwrap_or(0.0) + x,
+        }
+    }
+
+    pub fn unwrap(&self) -> f64 {
+        match *self {
+            Altitude::Absolute(x) => x,
+            Altitude::Relative(_) => panic!("unwrapping relative altitude"),
+        }
+    }
+
+    pub fn convert_into_absolute(&mut self, terrain: &Terrain, lat: f64, lon: f64) {
+        match *self {
+            Altitude::Absolute(_) => (),
+            Altitude::Relative(x) => {
+                *self = Altitude::Absolute(terrain.get_elev(lat, lon).unwrap_or(0.0) + x);
+            }
         }
     }
 }
@@ -60,6 +77,12 @@ impl Default for Position {
             altitude: Altitude::Relative(1.0),
         }
     }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Scene {
+    pub terrain_folder: String,
+    pub objects: Vec<Object>,
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -312,7 +335,7 @@ pub enum AtmosphereDef {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Config {
-    terrain_folder: Option<String>,
+    scene: Scene,
     view: Option<ConfView>,
     atmosphere: Option<AtmosphereDef>,
     earth_shape: Option<EarthShape>,
@@ -323,7 +346,7 @@ pub struct Config {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Params {
-    pub terrain_folder: String,
+    pub scene: Scene,
     pub view: View,
     pub env: Environment,
     pub straight_rays: bool,
@@ -364,9 +387,7 @@ impl Config {
             radius: 6_371_000.0,
         });
         Params {
-            terrain_folder: self
-                .terrain_folder
-                .unwrap_or_else(|| "./terrain".to_owned()),
+            scene: self.scene,
             view: self
                 .view
                 .map(|conf_view| conf_view.into_view(&earth_shape))
@@ -388,7 +409,10 @@ impl Config {
 impl Default for Params {
     fn default() -> Params {
         Params {
-            terrain_folder: "./terrain".to_owned(),
+            scene: Scene {
+                terrain_folder: "./terrain".to_owned(),
+                objects: vec![],
+            },
             view: Default::default(),
             env: Environment {
                 shape: EarthShape::Spherical {
@@ -572,7 +596,7 @@ pub fn parse_params() -> Params {
     };
 
     if let Some(terrain) = matches.value_of("terrain") {
-        params.terrain_folder = terrain.to_owned();
+        params.scene.terrain_folder = terrain.to_owned();
     }
     if let Some(output) = matches.value_of("output") {
         params.output.file = output.to_owned();
