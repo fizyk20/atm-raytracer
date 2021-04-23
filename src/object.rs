@@ -23,7 +23,7 @@ pub struct Object {
 }
 
 impl Object {
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::many_single_char_names)]
     pub fn check_collision(
         &self,
         earth_shape: &EarthShape,
