@@ -104,6 +104,7 @@ pub struct TerrainData {
     lon: f64,
     elev: f64,
     normal: Vector3<f64>,
+    object_close: bool,
 }
 
 fn find_normal(shape: &EarthShape, lat: f64, lon: f64, terrain: &Terrain) -> Vector3<f64> {
@@ -147,11 +148,17 @@ pub fn gen_terrain_cache(params: &Params, terrain: &Terrain, x: u16) -> Vec<Terr
             distance,
         );
         let normal = find_normal(&params.env.shape, lat, lon, terrain);
+        let object_close = params
+            .scene
+            .objects
+            .iter()
+            .any(|obj| obj.is_close(&params.env.shape, params.simulation_step, lat, lon));
         result.push(TerrainData {
             lat,
             lon,
             elev: terrain.get_elev(lat, lon).unwrap_or(0.0),
             normal,
+            object_close,
         });
     }
 
@@ -164,27 +171,24 @@ pub fn get_single_pixel(
     objects: &[Object],
     earth_shape: &EarthShape,
 ) -> Option<ResultPixel> {
-    let TerrainData {
-        mut lat,
-        mut lon,
-        mut elev,
-        mut normal,
-    } = terrain_cache[0];
+    let mut old_terrain_data = terrain_cache[0];
     let mut dist = 0.0;
     let mut path_len = 0.0;
     let mut ray_elev = path_cache[0].elev;
 
     for (terrain_data, path_elem) in terrain_cache.iter().zip(path_cache).skip(1) {
         if path_elem.elev < terrain_data.elev {
-            let diff1 = ray_elev - elev;
+            let diff1 = ray_elev - old_terrain_data.elev;
             let diff2 = path_elem.elev - terrain_data.elev;
             let prop = diff1 / (diff1 - diff2);
             let distance = dist + (path_elem.dist - dist) * prop;
-            let elevation = elev + (terrain_data.elev - elev) * prop;
+            let elevation =
+                old_terrain_data.elev + (terrain_data.elev - old_terrain_data.elev) * prop;
             let path_length = path_len + (path_elem.path_length - path_len) * prop;
-            let lat = lat + (terrain_data.lat - lat) * prop;
-            let lon = lon + (terrain_data.lon - lon) * prop;
-            let normal = normal + (terrain_data.normal - normal) * prop;
+            let lat = old_terrain_data.lat + (terrain_data.lat - old_terrain_data.lat) * prop;
+            let lon = old_terrain_data.lon + (terrain_data.lon - old_terrain_data.lon) * prop;
+            let normal =
+                old_terrain_data.normal + (terrain_data.normal - old_terrain_data.normal) * prop;
             return Some(ResultPixel {
                 lat,
                 lon,
@@ -195,36 +199,38 @@ pub fn get_single_pixel(
                 color: PixelColor::Terrain,
             });
         }
-        for object in objects {
-            if let Some((prop, normal, color)) = object.check_collision(
-                earth_shape,
-                lat,
-                terrain_data.lat,
-                lon,
-                terrain_data.lon,
-                ray_elev,
-                path_elem.elev,
-            ) {
-                let distance = dist + (path_elem.dist - dist) * prop;
-                let elevation = elev + (terrain_data.elev - elev) * prop;
-                let path_length = path_len + (path_elem.path_length - path_len) * prop;
-                let lat = lat + (terrain_data.lat - lat) * prop;
-                let lon = lon + (terrain_data.lon - lon) * prop;
-                return Some(ResultPixel {
-                    lat,
-                    lon,
-                    distance,
-                    elevation,
-                    path_length,
-                    normal,
-                    color: PixelColor::Rgb(color),
-                });
+        if terrain_data.object_close || old_terrain_data.object_close {
+            for object in objects {
+                if let Some((prop, normal, color)) = object.check_collision(
+                    earth_shape,
+                    old_terrain_data.lat,
+                    terrain_data.lat,
+                    old_terrain_data.lon,
+                    terrain_data.lon,
+                    ray_elev,
+                    path_elem.elev,
+                ) {
+                    let distance = dist + (path_elem.dist - dist) * prop;
+                    let elevation =
+                        old_terrain_data.elev + (terrain_data.elev - old_terrain_data.elev) * prop;
+                    let path_length = path_len + (path_elem.path_length - path_len) * prop;
+                    let lat =
+                        old_terrain_data.lat + (terrain_data.lat - old_terrain_data.lat) * prop;
+                    let lon =
+                        old_terrain_data.lon + (terrain_data.lon - old_terrain_data.lon) * prop;
+                    return Some(ResultPixel {
+                        lat,
+                        lon,
+                        distance,
+                        elevation,
+                        path_length,
+                        normal,
+                        color: PixelColor::Rgb(color),
+                    });
+                }
             }
         }
-        lat = terrain_data.lat;
-        lon = terrain_data.lon;
-        elev = terrain_data.elev;
-        normal = terrain_data.normal;
+        old_terrain_data = *terrain_data;
         dist = path_elem.dist;
         ray_elev = path_elem.elev;
         path_len = path_elem.path_length;

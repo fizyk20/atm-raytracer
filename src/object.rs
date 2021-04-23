@@ -105,6 +105,22 @@ impl Object {
             }
         }
     }
+
+    pub fn is_close(&self, earth_shape: &EarthShape, sim_step: f64, lat: f64, lon: f64) -> bool {
+        match self.shape {
+            Shape::Cylinder { radius, .. } => {
+                let obj_pos = pos_to_3d(
+                    earth_shape,
+                    self.position.latitude,
+                    self.position.longitude,
+                    self.position.altitude.unwrap(),
+                );
+                let pos = pos_to_3d(earth_shape, lat, lon, self.position.altitude.unwrap());
+                let dist_v = pos - obj_pos;
+                dist_v.dot(&dist_v) < 2.0 * (radius + sim_step) * (radius + sim_step)
+            }
+        }
+    }
 }
 
 fn spherical_to_cartesian(r: f64, lat: f64, lon: f64) -> Vector3<f64> {
