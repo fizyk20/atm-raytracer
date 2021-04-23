@@ -46,27 +46,17 @@ impl Altitude {
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
-pub struct ConfPosition {
-    latitude: Option<f64>,
-    longitude: Option<f64>,
-    altitude: Option<Altitude>,
-}
-
-#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Position {
+    #[serde(default)]
     pub latitude: f64,
+    #[serde(default)]
     pub longitude: f64,
+    #[serde(default = "default_altitude")]
     pub altitude: Altitude,
 }
 
-impl ConfPosition {
-    pub fn into_position(self) -> Position {
-        Position {
-            latitude: self.latitude.unwrap_or(0.0),
-            longitude: self.longitude.unwrap_or(0.0),
-            altitude: self.altitude.unwrap_or(Altitude::Relative(1.0)),
-        }
-    }
+fn default_altitude() -> Altitude {
+    Altitude::Relative(1.0)
 }
 
 impl Default for Position {
@@ -81,35 +71,43 @@ impl Default for Position {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Scene {
+    #[serde(default = "default_terrain_folder")]
     pub terrain_folder: String,
+    #[serde(default)]
     pub objects: Vec<Object>,
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
-pub struct ConfFrame {
-    direction: Option<f64>,
-    tilt: Option<f64>,
-    fov: Option<f64>,
-    max_distance: Option<f64>,
+fn default_terrain_folder() -> String {
+    "./terrain".to_string()
+}
+
+impl Default for Scene {
+    fn default() -> Self {
+        Self {
+            terrain_folder: default_terrain_folder(),
+            objects: vec![],
+        }
+    }
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Frame {
+    #[serde(default)]
     pub direction: f64,
+    #[serde(default)]
     pub tilt: f64,
+    #[serde(default = "default_fov")]
     pub fov: f64,
+    #[serde(default = "default_distance")]
     pub max_distance: f64,
 }
 
-impl ConfFrame {
-    pub fn into_frame(self) -> Frame {
-        Frame {
-            direction: self.direction.unwrap_or(0.0),
-            tilt: self.tilt.unwrap_or(0.0),
-            fov: self.fov.unwrap_or(30.0),
-            max_distance: self.max_distance.unwrap_or(150_000.0),
-        }
-    }
+fn default_fov() -> f64 {
+    30.0
+}
+
+fn default_distance() -> f64 {
+    150_000.0
 }
 
 impl Default for Frame {
@@ -117,8 +115,8 @@ impl Default for Frame {
         Frame {
             direction: 0.0,
             tilt: 0.0,
-            fov: 30.0,
-            max_distance: 150_000.0,
+            fov: default_fov(),
+            max_distance: default_distance(),
         }
     }
 }
@@ -126,14 +124,38 @@ impl Default for Frame {
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum ConfColoring {
     Simple {
-        water_level: Option<f64>,
+        #[serde(default)]
+        water_level: f64,
     },
     Shading {
-        water_level: Option<f64>,
-        ambient_light: Option<f64>,
-        light_zenith_angle: Option<f64>,
-        light_dir: Option<f64>,
+        #[serde(default)]
+        water_level: f64,
+        #[serde(default = "default_ambient_light")]
+        ambient_light: f64,
+        #[serde(default = "default_zenith_angle")]
+        light_zenith_angle: f64,
+        #[serde(default)]
+        light_dir: f64,
     },
+}
+
+fn default_ambient_light() -> f64 {
+    0.4
+}
+
+fn default_zenith_angle() -> f64 {
+    45.0
+}
+
+impl Default for ConfColoring {
+    fn default() -> Self {
+        ConfColoring::Shading {
+            water_level: 0.0,
+            ambient_light: default_ambient_light(),
+            light_zenith_angle: default_zenith_angle(),
+            light_dir: 0.0,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -158,7 +180,7 @@ impl ConfColoring {
     ) -> Coloring {
         match self {
             ConfColoring::Simple { water_level } => Coloring::Simple {
-                water_level: water_level.unwrap_or(0.0),
+                water_level,
                 max_distance: frame.max_distance,
             },
             ConfColoring::Shading {
@@ -167,10 +189,8 @@ impl ConfColoring {
                 light_zenith_angle,
                 light_dir,
             } => {
-                let water_level = water_level.unwrap_or(0.0);
-                let ambient_light = ambient_light.unwrap_or(0.4);
-                let light_zenith_angle = light_zenith_angle.unwrap_or(45.0).to_radians();
-                let light_dir = light_dir.unwrap_or(0.0).to_radians();
+                let light_zenith_angle = light_zenith_angle.to_radians();
+                let light_dir = light_dir.to_radians();
                 let (dir_north, dir_east, dir_up) =
                     world_directions(earth_shape, position.latitude, position.longitude);
                 let front_azimuth = frame.direction.to_radians();
@@ -191,13 +211,6 @@ impl ConfColoring {
 }
 
 impl Coloring {
-    fn default_coloring(frame: &Frame) -> Coloring {
-        Coloring::Simple {
-            water_level: 0.0,
-            max_distance: frame.max_distance,
-        }
-    }
-
     pub fn coloring_method(&self) -> Box<dyn ColoringMethod> {
         match *self {
             Coloring::Simple {
@@ -213,11 +226,14 @@ impl Coloring {
     }
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, Default)]
 pub struct ConfView {
-    position: Option<ConfPosition>,
-    frame: Option<ConfFrame>,
-    coloring: Option<ConfColoring>,
+    #[serde(default)]
+    position: Position,
+    #[serde(default)]
+    frame: Frame,
+    #[serde(default)]
+    coloring: ConfColoring,
     fog_distance: Option<f64>,
 }
 
@@ -231,37 +247,14 @@ pub struct View {
 
 impl ConfView {
     pub fn into_view(self, earth_shape: &EarthShape) -> View {
-        let frame = self
-            .frame
-            .map(ConfFrame::into_frame)
-            .unwrap_or_else(Default::default);
-        let position = self
-            .position
-            .map(ConfPosition::into_position)
-            .unwrap_or_else(Default::default);
         let coloring = self
             .coloring
-            .map(|conf_coloring| conf_coloring.into_coloring(&frame, &position, earth_shape))
-            .unwrap_or_else(|| Coloring::default_coloring(&frame));
+            .into_coloring(&self.frame, &self.position, earth_shape);
         View {
-            position,
-            frame,
+            position: self.position,
+            frame: self.frame,
             coloring,
             fog_distance: self.fog_distance,
-        }
-    }
-}
-
-impl Default for View {
-    fn default() -> Self {
-        let frame = Frame::default();
-        let position = Position::default();
-        let coloring = Coloring::default_coloring(&frame);
-        View {
-            frame,
-            position,
-            coloring,
-            fog_distance: None,
         }
     }
 }
@@ -282,45 +275,39 @@ pub enum Tick {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct ConfOutput {
-    file: Option<String>,
-    file_metadata: Option<String>,
-    width: Option<u16>,
-    height: Option<u16>,
-    ticks: Option<Vec<Tick>>,
-    show_eye_level: Option<bool>,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
 pub struct Output {
+    #[serde(default = "default_file")]
     pub file: String,
     pub file_metadata: Option<String>,
+    #[serde(default = "default_width")]
     pub width: u16,
+    #[serde(default = "default_height")]
     pub height: u16,
+    #[serde(default)]
     pub ticks: Vec<Tick>,
+    #[serde(default)]
     pub show_eye_level: bool,
 }
 
-impl ConfOutput {
-    fn into_output(self) -> Output {
-        Output {
-            file: self.file.unwrap_or_else(|| "./output.png".to_owned()),
-            file_metadata: self.file_metadata,
-            width: self.width.unwrap_or(640),
-            height: self.height.unwrap_or(480),
-            ticks: self.ticks.unwrap_or_else(Vec::new),
-            show_eye_level: self.show_eye_level.unwrap_or(false),
-        }
-    }
+fn default_file() -> String {
+    "./output.png".to_owned()
+}
+
+fn default_width() -> u16 {
+    640
+}
+
+fn default_height() -> u16 {
+    480
 }
 
 impl Default for Output {
     fn default() -> Output {
         Output {
-            file: "./output.png".to_owned(),
+            file: default_file(),
             file_metadata: None,
-            width: 640,
-            height: 480,
+            width: default_width(),
+            height: default_height(),
             ticks: Vec::new(),
             show_eye_level: false,
         }
@@ -335,13 +322,43 @@ pub enum AtmosphereDef {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(default)]
     scene: Scene,
-    view: Option<ConfView>,
+    #[serde(default)]
+    view: ConfView,
     atmosphere: Option<AtmosphereDef>,
-    earth_shape: Option<EarthShape>,
-    straight_rays: Option<bool>,
-    simulation_step: Option<f64>,
-    output: Option<ConfOutput>,
+    #[serde(default = "default_earth_shape")]
+    earth_shape: EarthShape,
+    #[serde(default)]
+    straight_rays: bool,
+    #[serde(default = "default_simulation_step")]
+    simulation_step: f64,
+    #[serde(default)]
+    output: Output,
+}
+
+fn default_earth_shape() -> EarthShape {
+    EarthShape::Spherical {
+        radius: 6_371_000.0,
+    }
+}
+
+fn default_simulation_step() -> f64 {
+    50.0
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            scene: Default::default(),
+            view: Default::default(),
+            atmosphere: None,
+            earth_shape: default_earth_shape(),
+            straight_rays: false,
+            simulation_step: default_simulation_step(),
+            output: Default::default(),
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -383,47 +400,23 @@ impl Config {
         } else {
             us76_atmosphere()
         };
-        let earth_shape = self.earth_shape.unwrap_or(EarthShape::Spherical {
-            radius: 6_371_000.0,
-        });
         Params {
             scene: self.scene,
-            view: self
-                .view
-                .map(|conf_view| conf_view.into_view(&earth_shape))
-                .unwrap_or_else(Default::default),
+            view: self.view.into_view(&self.earth_shape),
             env: Environment {
-                shape: earth_shape,
+                shape: self.earth_shape,
                 atmosphere,
             },
-            straight_rays: self.straight_rays.unwrap_or(false),
-            simulation_step: self.simulation_step.unwrap_or(50.0),
-            output: self
-                .output
-                .map(ConfOutput::into_output)
-                .unwrap_or_else(Default::default),
+            straight_rays: self.straight_rays,
+            simulation_step: self.simulation_step,
+            output: self.output,
         }
     }
 }
 
 impl Default for Params {
     fn default() -> Params {
-        Params {
-            scene: Scene {
-                terrain_folder: "./terrain".to_owned(),
-                objects: vec![],
-            },
-            view: Default::default(),
-            env: Environment {
-                shape: EarthShape::Spherical {
-                    radius: 6_371_000.0,
-                },
-                atmosphere: us76_atmosphere(),
-            },
-            straight_rays: false,
-            simulation_step: 50.0,
-            output: Default::default(),
-        }
+        Config::default().into_params()
     }
 }
 
@@ -670,6 +663,10 @@ pub fn parse_params() -> Params {
         (true, Some(_)) => panic!("Conflicting Earth shape options chosen!"),
         _ => (),
     };
+
+    if matches.is_present("straight") {
+        params.straight_rays = true;
+    }
 
     params
 }
