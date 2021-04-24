@@ -1,4 +1,7 @@
-use crate::params::Position;
+use crate::{
+    params::Position,
+    utils::{spherical_to_cartesian, Coords},
+};
 
 use atm_refraction::EarthShape;
 use nalgebra::Vector3;
@@ -27,21 +30,17 @@ impl Object {
     pub fn check_collision(
         &self,
         earth_shape: &EarthShape,
-        lat1: f64,
-        lat2: f64,
-        lon1: f64,
-        lon2: f64,
-        elev1: f64,
-        elev2: f64,
+        point1: Coords,
+        point2: Coords,
     ) -> Option<(f64, Vector3<f64>, Color)> {
-        let pos1 = pos_to_3d(earth_shape, lat1, lon1, elev1);
-        let pos2 = pos_to_3d(earth_shape, lat2, lon2, elev2);
-        let obj_pos = pos_to_3d(
-            earth_shape,
-            self.position.latitude,
-            self.position.longitude,
-            self.position.altitude.unwrap(),
-        );
+        let pos1 = point1.to_cartesian(earth_shape);
+        let pos2 = point2.to_cartesian(earth_shape);
+        let obj_pos = Coords {
+            lat: self.position.latitude,
+            lon: self.position.longitude,
+            elev: self.position.altitude.unwrap(),
+        }
+        .to_cartesian(earth_shape);
         match self.shape {
             Shape::Cylinder { radius, height } => {
                 let p1 = pos1 - obj_pos;
@@ -109,36 +108,21 @@ impl Object {
     pub fn is_close(&self, earth_shape: &EarthShape, sim_step: f64, lat: f64, lon: f64) -> bool {
         match self.shape {
             Shape::Cylinder { radius, .. } => {
-                let obj_pos = pos_to_3d(
-                    earth_shape,
-                    self.position.latitude,
-                    self.position.longitude,
-                    self.position.altitude.unwrap(),
-                );
-                let pos = pos_to_3d(earth_shape, lat, lon, self.position.altitude.unwrap());
+                let obj_pos = Coords {
+                    lat: self.position.latitude,
+                    lon: self.position.longitude,
+                    elev: self.position.altitude.unwrap(),
+                }
+                .to_cartesian(earth_shape);
+                let pos = Coords {
+                    lat,
+                    lon,
+                    elev: self.position.altitude.unwrap(),
+                }
+                .to_cartesian(earth_shape);
                 let dist_v = pos - obj_pos;
                 dist_v.dot(&dist_v) < 2.0 * (radius + sim_step) * (radius + sim_step)
             }
-        }
-    }
-}
-
-fn spherical_to_cartesian(r: f64, lat: f64, lon: f64) -> Vector3<f64> {
-    let x = r * lat.to_radians().cos() * lon.to_radians().cos();
-    let y = r * lat.to_radians().cos() * lon.to_radians().sin();
-    let z = r * lat.to_radians().sin();
-    Vector3::new(x, y, z)
-}
-
-fn pos_to_3d(shape: &EarthShape, lat: f64, lon: f64, elev: f64) -> Vector3<f64> {
-    match shape {
-        EarthShape::Spherical { radius } => spherical_to_cartesian(radius + elev, lat, lon),
-        EarthShape::Flat => {
-            let z = elev;
-            let r = (90.0 - lat) * 10_000_000.0 / 90.0;
-            let x = r * lon.to_radians().cos();
-            let y = r * lon.to_radians().sin();
-            Vector3::new(x, y, z)
         }
     }
 }

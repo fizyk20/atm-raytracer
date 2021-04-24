@@ -2,7 +2,7 @@ use crate::{
     object::{Color, Object},
     params::Params,
     terrain::Terrain,
-    utils::world_directions,
+    utils::{world_directions, Coords},
 };
 
 use atm_refraction::{EarthShape, RayState};
@@ -165,75 +165,104 @@ pub fn gen_terrain_cache(params: &Params, terrain: &Terrain, x: u16) -> Vec<Terr
     result
 }
 
+struct TracingState {
+    terrain_data: TerrainData,
+    ray_elev: f64,
+    dist: f64,
+    path_len: f64,
+}
+
+impl TracingState {
+    fn new(terrain_data: TerrainData, ray_elev: f64, dist: f64, path_len: f64) -> Self {
+        Self {
+            terrain_data,
+            ray_elev,
+            dist,
+            path_len,
+        }
+    }
+
+    fn interpolate(&self, other: &TracingState, prop: f64) -> TracingState {
+        TracingState {
+            terrain_data: TerrainData {
+                lat: self.terrain_data.lat
+                    + (other.terrain_data.lat - self.terrain_data.lat) * prop,
+                lon: self.terrain_data.lon
+                    + (other.terrain_data.lon - self.terrain_data.lon) * prop,
+                elev: self.terrain_data.elev
+                    + (other.terrain_data.elev - self.terrain_data.elev) * prop,
+                normal: self.terrain_data.normal
+                    + (other.terrain_data.normal - self.terrain_data.normal) * prop,
+                object_close: false,
+            },
+            ray_elev: self.ray_elev + (other.ray_elev - self.ray_elev) * prop,
+            dist: self.dist + (other.dist - self.dist) * prop,
+            path_len: self.path_len + (other.path_len - self.path_len) * prop,
+        }
+    }
+
+    fn ray_coords(&self) -> Coords {
+        Coords {
+            lat: self.terrain_data.lat,
+            lon: self.terrain_data.lon,
+            elev: self.ray_elev,
+        }
+    }
+}
+
 pub fn get_single_pixel(
     terrain_cache: &[TerrainData],
     path_cache: &[PathElem],
     objects: &[Object],
     earth_shape: &EarthShape,
 ) -> Option<ResultPixel> {
-    let mut old_terrain_data = terrain_cache[0];
-    let mut dist = 0.0;
-    let mut path_len = 0.0;
-    let mut ray_elev = path_cache[0].elev;
+    let mut old_tracing_state = TracingState::new(terrain_cache[0], path_cache[0].elev, 0.0, 0.0);
 
     for (terrain_data, path_elem) in terrain_cache.iter().zip(path_cache).skip(1) {
+        let new_tracing_state = TracingState::new(
+            *terrain_data,
+            path_elem.elev,
+            path_elem.dist,
+            path_elem.path_length,
+        );
         if path_elem.elev < terrain_data.elev {
-            let diff1 = ray_elev - old_terrain_data.elev;
-            let diff2 = path_elem.elev - terrain_data.elev;
+            let diff1 = old_tracing_state.ray_elev - old_tracing_state.terrain_data.elev;
+            let diff2 = new_tracing_state.ray_elev - new_tracing_state.terrain_data.elev;
             let prop = diff1 / (diff1 - diff2);
-            let distance = dist + (path_elem.dist - dist) * prop;
-            let elevation =
-                old_terrain_data.elev + (terrain_data.elev - old_terrain_data.elev) * prop;
-            let path_length = path_len + (path_elem.path_length - path_len) * prop;
-            let lat = old_terrain_data.lat + (terrain_data.lat - old_terrain_data.lat) * prop;
-            let lon = old_terrain_data.lon + (terrain_data.lon - old_terrain_data.lon) * prop;
-            let normal =
-                old_terrain_data.normal + (terrain_data.normal - old_terrain_data.normal) * prop;
+            let interpolated = old_tracing_state.interpolate(&new_tracing_state, prop);
             return Some(ResultPixel {
-                lat,
-                lon,
-                distance,
-                elevation,
-                path_length,
-                normal,
+                lat: interpolated.terrain_data.lat,
+                lon: interpolated.terrain_data.lon,
+                distance: interpolated.dist,
+                elevation: interpolated.terrain_data.elev,
+                path_length: interpolated.path_len,
+                normal: interpolated.terrain_data.normal,
                 color: PixelColor::Terrain,
             });
         }
-        if terrain_data.object_close || old_terrain_data.object_close {
+        if new_tracing_state.terrain_data.object_close
+            || old_tracing_state.terrain_data.object_close
+        {
             for object in objects {
                 if let Some((prop, normal, color)) = object.check_collision(
                     earth_shape,
-                    old_terrain_data.lat,
-                    terrain_data.lat,
-                    old_terrain_data.lon,
-                    terrain_data.lon,
-                    ray_elev,
-                    path_elem.elev,
+                    old_tracing_state.ray_coords(),
+                    new_tracing_state.ray_coords(),
                 ) {
-                    let distance = dist + (path_elem.dist - dist) * prop;
-                    let elevation =
-                        old_terrain_data.elev + (terrain_data.elev - old_terrain_data.elev) * prop;
-                    let path_length = path_len + (path_elem.path_length - path_len) * prop;
-                    let lat =
-                        old_terrain_data.lat + (terrain_data.lat - old_terrain_data.lat) * prop;
-                    let lon =
-                        old_terrain_data.lon + (terrain_data.lon - old_terrain_data.lon) * prop;
+                    let interpolated = old_tracing_state.interpolate(&new_tracing_state, prop);
                     return Some(ResultPixel {
-                        lat,
-                        lon,
-                        distance,
-                        elevation,
-                        path_length,
+                        lat: interpolated.terrain_data.lat,
+                        lon: interpolated.terrain_data.lon,
+                        distance: interpolated.dist,
+                        elevation: interpolated.ray_elev,
+                        path_length: interpolated.path_len,
                         normal,
                         color: PixelColor::Rgb(color),
                     });
                 }
             }
         }
-        old_terrain_data = *terrain_data;
-        dist = path_elem.dist;
-        ray_elev = path_elem.elev;
-        path_len = path_elem.path_length;
+        old_tracing_state = new_tracing_state;
     }
     None
 }

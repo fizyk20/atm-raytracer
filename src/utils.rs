@@ -32,3 +32,34 @@ pub fn world_directions(
         }
     }
 }
+
+#[derive(Clone, Copy, Debug)]
+pub struct Coords {
+    pub lat: f64,
+    pub lon: f64,
+    pub elev: f64,
+}
+
+impl Coords {
+    pub fn to_cartesian(&self, shape: &EarthShape) -> Vector3<f64> {
+        match shape {
+            EarthShape::Spherical { radius } => {
+                spherical_to_cartesian(radius + self.elev, self.lat, self.lon)
+            }
+            EarthShape::Flat => {
+                let z = self.elev;
+                let r = (90.0 - self.lat) * 10_000_000.0 / 90.0;
+                let x = r * self.lon.to_radians().cos();
+                let y = r * self.lon.to_radians().sin();
+                Vector3::new(x, y, z)
+            }
+        }
+    }
+}
+
+pub fn spherical_to_cartesian(r: f64, lat: f64, lon: f64) -> Vector3<f64> {
+    let x = r * lat.to_radians().cos() * lon.to_radians().cos();
+    let y = r * lat.to_radians().cos() * lon.to_radians().sin();
+    let z = r * lat.to_radians().sin();
+    Vector3::new(x, y, z)
+}
