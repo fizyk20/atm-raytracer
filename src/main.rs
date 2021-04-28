@@ -210,23 +210,16 @@ fn output_metadata(filename: &str, pixels: Vec<Vec<Option<ResultPixel>>>, params
 }
 
 fn main() {
-    let mut params = params::parse_params();
+    let config = params::parse_config();
 
     let mut terrain_folder = env::current_dir().unwrap();
-    terrain_folder.push(&params.scene.terrain_folder);
+    terrain_folder.push(config.terrain_folder());
 
     println!("Using terrain data directory: {:?}", terrain_folder);
 
     let terrain = Terrain::from_folder(terrain_folder);
 
-    // Convert object altitudes to absolute
-    for object in &mut params.scene.objects {
-        object.position.altitude.convert_into_absolute(
-            &terrain,
-            object.position.latitude,
-            object.position.longitude,
-        );
-    }
+    let params = config.into_params(&terrain);
 
     println!("Generating terrain cache...");
     let terrain_cache = (0..params.output.width)

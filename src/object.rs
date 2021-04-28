@@ -1,14 +1,38 @@
 use crate::{
     params::Position,
+    terrain::Terrain,
     utils::{spherical_to_cartesian, Coords},
 };
 
 use atm_refraction::EarthShape;
 use nalgebra::Vector3;
 
+#[derive(Clone, Serialize, Deserialize)]
+pub enum ConfShape {
+    Cylinder {
+        radius: f64,
+        height: f64,
+    },
+    Billboard {
+        width: f64,
+        height: f64,
+        texture_path: String,
+    },
+}
+
+impl ConfShape {
+    pub fn into_shape(self) -> Shape {
+        match self {
+            ConfShape::Cylinder { radius, height } => Shape::Cylinder { radius, height },
+            ConfShape::Billboard { width, height, .. } => Shape::Billboard { width, height },
+        }
+    }
+}
+
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum Shape {
     Cylinder { radius: f64, height: f64 },
+    Billboard { width: f64, height: f64 },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -18,9 +42,36 @@ pub struct Color {
     pub b: f64,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ConfObject {
+    position: Position,
+    shape: ConfShape,
+    color: Color,
+}
+
+impl ConfObject {
+    pub fn into_object(self, terrain: &Terrain) -> Object {
+        let position = Coords {
+            lat: self.position.latitude,
+            lon: self.position.longitude,
+            elev: self.position.altitude.abs(
+                terrain,
+                self.position.latitude,
+                self.position.longitude,
+            ),
+        };
+        let shape = self.shape.into_shape();
+        Object {
+            position,
+            shape,
+            color: self.color,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Object {
-    pub position: Position,
+    pub position: Coords,
     pub shape: Shape,
     pub color: Color,
 }
@@ -35,12 +86,7 @@ impl Object {
     ) -> Option<(f64, Vector3<f64>, Color)> {
         let pos1 = point1.to_cartesian(earth_shape);
         let pos2 = point2.to_cartesian(earth_shape);
-        let obj_pos = Coords {
-            lat: self.position.latitude,
-            lon: self.position.longitude,
-            elev: self.position.altitude.unwrap(),
-        }
-        .to_cartesian(earth_shape);
+        let obj_pos = self.position.to_cartesian(earth_shape);
         match self.shape {
             Shape::Cylinder { radius, height } => {
                 let p1 = pos1 - obj_pos;
@@ -53,8 +99,8 @@ impl Object {
                 let v = {
                     match earth_shape {
                         EarthShape::Spherical { .. } => {
-                            let lat = self.position.latitude;
-                            let lon = self.position.longitude;
+                            let lat = self.position.lat;
+                            let lon = self.position.lon;
                             spherical_to_cartesian(1.0, lat, lon)
                         }
                         EarthShape::Flat => Vector3::new(0.0, 0.0, 1.0),
@@ -102,27 +148,24 @@ impl Object {
                     Some((x, normal, self.color))
                 }
             }
+            Shape::Billboard { .. } => None,
         }
     }
 
     pub fn is_close(&self, earth_shape: &EarthShape, sim_step: f64, lat: f64, lon: f64) -> bool {
         match self.shape {
             Shape::Cylinder { radius, .. } => {
-                let obj_pos = Coords {
-                    lat: self.position.latitude,
-                    lon: self.position.longitude,
-                    elev: self.position.altitude.unwrap(),
-                }
-                .to_cartesian(earth_shape);
+                let obj_pos = self.position.to_cartesian(earth_shape);
                 let pos = Coords {
                     lat,
                     lon,
-                    elev: self.position.altitude.unwrap(),
+                    elev: self.position.elev,
                 }
                 .to_cartesian(earth_shape);
                 let dist_v = pos - obj_pos;
                 dist_v.dot(&dist_v) < 2.0 * (radius + sim_step) * (radius + sim_step)
             }
+            Shape::Billboard { .. } => false,
         }
     }
 }

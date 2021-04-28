@@ -2,13 +2,13 @@ use std::{env, fs::File, io::Read};
 
 use crate::{
     coloring::{ColoringMethod, Shading, SimpleColors},
-    object::Object,
+    object::{ConfObject, Object},
     terrain::Terrain,
     utils::world_directions,
 };
 
 use atm_refraction::{
-    air::{atm_from_str, get_atmosphere, us76_atmosphere},
+    air::{atm_from_str, get_atmosphere, us76_atmosphere, Atmosphere},
     EarthShape, Environment,
 };
 use clap::{App, AppSettings, Arg};
@@ -25,22 +25,6 @@ impl Altitude {
         match *self {
             Altitude::Absolute(x) => x,
             Altitude::Relative(x) => terrain.get_elev(lat, lon).unwrap_or(0.0) + x,
-        }
-    }
-
-    pub fn unwrap(&self) -> f64 {
-        match *self {
-            Altitude::Absolute(x) => x,
-            Altitude::Relative(_) => panic!("unwrapping relative altitude"),
-        }
-    }
-
-    pub fn convert_into_absolute(&mut self, terrain: &Terrain, lat: f64, lon: f64) {
-        match *self {
-            Altitude::Absolute(_) => (),
-            Altitude::Relative(x) => {
-                *self = Altitude::Absolute(terrain.get_elev(lat, lon).unwrap_or(0.0) + x);
-            }
         }
     }
 }
@@ -70,24 +54,44 @@ impl Default for Position {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct Scene {
+pub struct ConfScene {
     #[serde(default = "default_terrain_folder")]
     pub terrain_folder: String,
     #[serde(default)]
-    pub objects: Vec<Object>,
+    pub objects: Vec<ConfObject>,
 }
 
 fn default_terrain_folder() -> String {
     "./terrain".to_string()
 }
 
-impl Default for Scene {
+impl Default for ConfScene {
     fn default() -> Self {
         Self {
             terrain_folder: default_terrain_folder(),
             objects: vec![],
         }
     }
+}
+
+impl ConfScene {
+    fn into_scene(self, terrain: &Terrain) -> Scene {
+        let objects = self
+            .objects
+            .into_iter()
+            .map(|obj| obj.into_object(terrain))
+            .collect();
+        Scene {
+            terrain_folder: self.terrain_folder,
+            objects,
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Scene {
+    pub terrain_folder: String,
+    pub objects: Vec<Object>,
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -318,12 +322,13 @@ impl Default for Output {
 pub enum AtmosphereDef {
     Path(String),
     Definition(String),
+    Atmosphere(Atmosphere),
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
-    scene: Scene,
+    scene: ConfScene,
     #[serde(default)]
     view: ConfView,
     atmosphere: Option<AtmosphereDef>,
@@ -387,7 +392,12 @@ impl Params {
 }
 
 impl Config {
-    fn into_params(self) -> Params {
+    pub fn terrain_folder(&self) -> &str {
+        &self.scene.terrain_folder
+    }
+
+    pub fn into_params(self, terrain: &Terrain) -> Params {
+        let scene = self.scene.into_scene(terrain);
         let atmosphere = if let Some(atm_def) = self.atmosphere {
             match atm_def {
                 AtmosphereDef::Path(path) => {
@@ -396,12 +406,13 @@ impl Config {
                     get_atmosphere(&atm_abs_path)
                 }
                 AtmosphereDef::Definition(def) => atm_from_str(&def).unwrap(),
+                AtmosphereDef::Atmosphere(atm) => atm,
             }
         } else {
             us76_atmosphere()
         };
         Params {
-            scene: self.scene,
+            scene,
             view: self.view.into_view(&self.earth_shape),
             env: Environment {
                 shape: self.earth_shape,
@@ -414,13 +425,7 @@ impl Config {
     }
 }
 
-impl Default for Params {
-    fn default() -> Params {
-        Config::default().into_params()
-    }
-}
-
-pub fn parse_params() -> Params {
+pub fn parse_config() -> Config {
     let matches = App::new("Atmospheric Panorama Raytracer")
         .version("0.4")
         .setting(AppSettings::AllowLeadingHyphen)
@@ -575,98 +580,96 @@ pub fn parse_params() -> Params {
         )
         .get_matches();
 
-    let mut params = if let Some(config_path) = matches.value_of("config") {
+    let mut config = if let Some(config_path) = matches.value_of("config") {
         let mut config_abs_path = env::current_dir().unwrap();
         config_abs_path.push(&config_path);
         let mut config_file = File::open(&config_abs_path).unwrap();
         let mut contents = String::new();
         config_file.read_to_string(&mut contents).unwrap();
-        serde_yaml::from_str::<Config>(&contents)
-            .unwrap()
-            .into_params()
+        serde_yaml::from_str::<Config>(&contents).unwrap()
     } else {
         Default::default()
     };
 
     if let Some(terrain) = matches.value_of("terrain") {
-        params.scene.terrain_folder = terrain.to_owned();
+        config.scene.terrain_folder = terrain.to_owned();
     }
     if let Some(output) = matches.value_of("output") {
-        params.output.file = output.to_owned();
+        config.output.file = output.to_owned();
     }
     if let Some(output_metadata) = matches.value_of("output-meta") {
-        params.output.file_metadata = Some(output_metadata.to_owned());
+        config.output.file_metadata = Some(output_metadata.to_owned());
     }
 
     if let Some(pic_width) = matches.value_of("width") {
-        params.output.width = pic_width.parse().expect("Invalid output width");
+        config.output.width = pic_width.parse().expect("Invalid output width");
     }
 
     if let Some(pic_height) = matches.value_of("height") {
-        params.output.height = pic_height.parse().expect("Invalid output height");
+        config.output.height = pic_height.parse().expect("Invalid output height");
     }
 
     if let Some(lat) = matches.value_of("latitude") {
-        params.view.position.latitude = lat.parse().expect("Invalid viewpoint latitude");
+        config.view.position.latitude = lat.parse().expect("Invalid viewpoint latitude");
     }
 
     if let Some(lon) = matches.value_of("longitude") {
-        params.view.position.longitude = lon.parse().expect("Invalid viewpoint longitude");
+        config.view.position.longitude = lon.parse().expect("Invalid viewpoint longitude");
     }
 
     match (matches.value_of("altitude"), matches.value_of("elevation")) {
         (Some(a), None) => {
-            params.view.position.altitude =
+            config.view.position.altitude =
                 Altitude::Absolute(a.parse().expect("Invalid viewpoint altitude"));
         }
         (None, Some(e)) => {
-            params.view.position.altitude =
+            config.view.position.altitude =
                 Altitude::Relative(e.parse().expect("Invalid viewpoint elevation"));
         }
         _ => (),
     };
 
     if let Some(dir) = matches.value_of("direction") {
-        params.view.frame.direction = dir.parse().expect("Invalid viewing azimuth");
+        config.view.frame.direction = dir.parse().expect("Invalid viewing azimuth");
     }
 
     if let Some(fov) = matches.value_of("fov") {
-        params.view.frame.fov = fov.parse().expect("Invalid field of view");
+        config.view.frame.fov = fov.parse().expect("Invalid field of view");
     }
 
     if let Some(tilt) = matches.value_of("tilt") {
-        params.view.frame.tilt = tilt.parse().expect("Invalid view tilt");
+        config.view.frame.tilt = tilt.parse().expect("Invalid view tilt");
     }
 
     if let Some(max_dist) = matches.value_of("max-dist") {
-        params.view.frame.max_distance =
+        config.view.frame.max_distance =
             max_dist.parse::<f64>().expect("Invalid cutoff distance") * 1e3;
     }
 
     if let Some(step) = matches.value_of("step") {
-        params.simulation_step = step.parse().expect("Invalid step value");
+        config.simulation_step = step.parse().expect("Invalid step value");
     }
 
     if let Some(atmosphere) = matches.value_of("atmosphere") {
         let atmosphere = get_atmosphere(&atmosphere);
-        params.env.atmosphere = atmosphere;
+        config.atmosphere = Some(AtmosphereDef::Atmosphere(atmosphere));
     }
 
     match (matches.is_present("flat"), matches.value_of("radius")) {
         (true, None) => {
-            params.env.shape = EarthShape::Flat;
+            config.earth_shape = EarthShape::Flat;
         }
         (false, Some(radius)) => {
             let r: f64 = radius.parse().expect("Invalid radius passed");
-            params.env.shape = EarthShape::Spherical { radius: r * 1e3 };
+            config.earth_shape = EarthShape::Spherical { radius: r * 1e3 };
         }
         (true, Some(_)) => panic!("Conflicting Earth shape options chosen!"),
         _ => (),
     };
 
     if matches.is_present("straight") {
-        params.straight_rays = true;
+        config.straight_rays = true;
     }
 
-    params
+    config
 }

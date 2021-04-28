@@ -33,7 +33,7 @@ pub fn world_directions(
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Coords {
     pub lat: f64,
     pub lon: f64,
