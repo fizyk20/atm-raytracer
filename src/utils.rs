@@ -8,11 +8,18 @@ pub fn world_directions(
     lon: f64,
 ) -> (Vector3<f64>, Vector3<f64>, Vector3<f64>) {
     match *shape {
-        EarthShape::Flat => (
-            Vector3::new(0.0, 1.0, 0.0),
-            Vector3::new(1.0, 0.0, 0.0),
-            Vector3::new(0.0, 0.0, 1.0),
-        ),
+        EarthShape::Flat => {
+            let lon_rad = lon.to_radians();
+
+            let sinlon = lon_rad.sin();
+            let coslon = lon_rad.cos();
+
+            (
+                Vector3::new(-coslon, -sinlon, 0.0),
+                Vector3::new(-sinlon, coslon, 0.0),
+                Vector3::new(0.0, 0.0, 1.0),
+            )
+        }
         EarthShape::Spherical { .. } => {
             let lat_rad = lat.to_radians();
             let lon_rad = lon.to_radians();
