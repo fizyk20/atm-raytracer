@@ -57,7 +57,7 @@ impl ColoringMethod for Shading {
     fn color_for_pixel(&self, pixel: &ResultPixel) -> Rgb<u8> {
         let brightness = self.calc_brightness(pixel.normal);
 
-        let color = if let PixelColor::Rgb(color) = pixel.color {
+        let color = if let PixelColor::Rgba(color) = pixel.color {
             Vector3::new(color.r, color.g, color.b)
         } else if pixel.elevation <= self.water_level {
             Vector3::new(0.0, 0.5, 1.0)

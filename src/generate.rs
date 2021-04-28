@@ -11,7 +11,16 @@ use nalgebra::Vector3;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum PixelColor {
     Terrain,
-    Rgb(Color),
+    Rgba(Color),
+}
+
+impl PixelColor {
+    pub fn alpha(&self) -> f64 {
+        match self {
+            PixelColor::Rgba(color) => color.a,
+            PixelColor::Terrain => 1.0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -215,8 +224,9 @@ pub fn get_single_pixel(
     path_cache: &[PathElem],
     objects: &[Object],
     earth_shape: &EarthShape,
-) -> Option<ResultPixel> {
+) -> Vec<ResultPixel> {
     let mut old_tracing_state = TracingState::new(terrain_cache[0], path_cache[0].elev, 0.0, 0.0);
+    let mut result = vec![];
 
     for (terrain_data, path_elem) in terrain_cache.iter().zip(path_cache).skip(1) {
         let new_tracing_state = TracingState::new(
@@ -230,7 +240,7 @@ pub fn get_single_pixel(
             let diff2 = new_tracing_state.ray_elev - new_tracing_state.terrain_data.elev;
             let prop = diff1 / (diff1 - diff2);
             let interpolated = old_tracing_state.interpolate(&new_tracing_state, prop);
-            return Some(ResultPixel {
+            result.push(ResultPixel {
                 lat: interpolated.terrain_data.lat,
                 lon: interpolated.terrain_data.lon,
                 distance: interpolated.dist,
@@ -239,6 +249,7 @@ pub fn get_single_pixel(
                 normal: interpolated.terrain_data.normal,
                 color: PixelColor::Terrain,
             });
+            return result;
         }
         if new_tracing_state.terrain_data.object_close
             || old_tracing_state.terrain_data.object_close
@@ -250,21 +261,24 @@ pub fn get_single_pixel(
                     new_tracing_state.ray_coords(),
                 ) {
                     let interpolated = old_tracing_state.interpolate(&new_tracing_state, prop);
-                    return Some(ResultPixel {
+                    result.push(ResultPixel {
                         lat: interpolated.terrain_data.lat,
                         lon: interpolated.terrain_data.lon,
                         distance: interpolated.dist,
                         elevation: interpolated.ray_elev,
                         path_length: interpolated.path_len,
                         normal,
-                        color: PixelColor::Rgb(color),
+                        color: PixelColor::Rgba(color),
                     });
+                    if color.a == 1.0 {
+                        return result;
+                    }
                 }
             }
         }
         old_tracing_state = new_tracing_state;
     }
-    None
+    result
 }
 
 const DEGREE_DISTANCE: f64 = 111_111.111;

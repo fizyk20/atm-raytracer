@@ -8,22 +8,25 @@ mod utils;
 #[macro_use]
 extern crate serde_derive;
 
-use crate::{
-    generate::{gen_path_cache, gen_terrain_cache, get_single_pixel, ResultPixel},
-    params::{Params, Tick},
-    terrain::Terrain,
-};
-use image::{ImageBuffer, Pixel, Rgb};
-use imageproc::drawing::{draw_line_segment_mut, draw_text_mut};
-use libflate::gzip::Encoder;
-use rayon::prelude::*;
-use rusttype::{FontCollection, Scale};
 use std::{
     collections::{hash_map::Entry, HashMap},
     env, fs,
     io::Write,
     sync::atomic::{AtomicUsize, Ordering},
 };
+
+use crate::{
+    generate::{gen_path_cache, gen_terrain_cache, get_single_pixel, ResultPixel},
+    params::{Params, Tick},
+    terrain::Terrain,
+    utils::{rgb_to_vec3, vec3_to_rgb},
+};
+
+use image::{ImageBuffer, Pixel, Rgb};
+use imageproc::drawing::{draw_line_segment_mut, draw_text_mut};
+use libflate::gzip::Encoder;
+use rayon::prelude::*;
+use rusttype::{FontCollection, Scale};
 
 static FONT: &[u8] = include_bytes!("DejaVuSans.ttf");
 
@@ -155,22 +158,37 @@ fn fog(fog_dist: f64, pixel_dist: f64, color: Rgb<u8>) -> Rgb<u8> {
     new_color
 }
 
-fn output_image(pixels: &[Vec<Option<ResultPixel>>], params: &Params) {
+fn blend(rgb1: Rgb<u8>, rgb2: Rgb<u8>, a: f64) -> Rgb<u8> {
+    let color1 = rgb_to_vec3(rgb1);
+    let color2 = rgb_to_vec3(rgb2);
+    let result = color1 * a + color2 * (1.0 - a);
+    vec3_to_rgb(result)
+}
+
+fn output_image(pixels: &[Vec<Vec<ResultPixel>>], params: &Params) {
     let mut img = ImageBuffer::new(params.output.width as u32, params.output.height as u32);
     let coloring = params.view.coloring.coloring_method();
     for (x, y, px) in img.enumerate_pixels_mut() {
-        if let Some(pixel) = pixels[y as usize][x as usize] {
-            let color = coloring.color_for_pixel(&pixel);
-            if let Some(fog_dist) = params.view.fog_distance {
-                *px = fog(fog_dist, pixel.path_length, color);
-            } else {
-                *px = color;
-            }
-        } else if params.view.fog_distance.is_some() {
-            *px = Rgb([160, 160, 160]);
+        let def_color = if params.view.fog_distance.is_some() {
+            Rgb([160, 160, 160])
         } else {
-            *px = Rgb([28, 28, 28]);
+            Rgb([28, 28, 28])
         };
+        let mut result = def_color;
+        let mut curr_alpha = 0.0;
+
+        for pixel in &pixels[y as usize][x as usize] {
+            let color1 = coloring.color_for_pixel(pixel);
+            let color2 = if let Some(fog_dist) = params.view.fog_distance {
+                fog(fog_dist, pixel.path_length, color1)
+            } else {
+                color1
+            };
+            result = blend(result, color2, curr_alpha);
+            curr_alpha += (1.0 - curr_alpha) * pixel.color.alpha();
+        }
+
+        *px = blend(result, def_color, curr_alpha);
     }
 
     draw_ticks(&mut img, &params);
@@ -185,10 +203,10 @@ fn output_image(pixels: &[Vec<Option<ResultPixel>>], params: &Params) {
 #[derive(Clone, Serialize, Deserialize)]
 struct AllData {
     params: Params,
-    result: Vec<Vec<Option<ResultPixel>>>,
+    result: Vec<Vec<Vec<ResultPixel>>>,
 }
 
-fn output_metadata(filename: &str, pixels: Vec<Vec<Option<ResultPixel>>>, params: Params) {
+fn output_metadata(filename: &str, pixels: Vec<Vec<Vec<ResultPixel>>>, params: Params) {
     let mut file = fs::File::create(filename).expect("failed to create a metadata file");
     let all_data = AllData {
         params,
