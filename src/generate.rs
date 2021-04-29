@@ -229,6 +229,8 @@ pub fn get_single_pixel(
     let mut result = vec![];
 
     for (terrain_data, path_elem) in terrain_cache.iter().zip(path_cache).skip(1) {
+        let mut finish = false;
+        let mut step_result = vec![];
         let new_tracing_state = TracingState::new(
             *terrain_data,
             path_elem.elev,
@@ -240,16 +242,19 @@ pub fn get_single_pixel(
             let diff2 = new_tracing_state.ray_elev - new_tracing_state.terrain_data.elev;
             let prop = diff1 / (diff1 - diff2);
             let interpolated = old_tracing_state.interpolate(&new_tracing_state, prop);
-            result.push(ResultPixel {
-                lat: interpolated.terrain_data.lat,
-                lon: interpolated.terrain_data.lon,
-                distance: interpolated.dist,
-                elevation: interpolated.terrain_data.elev,
-                path_length: interpolated.path_len,
-                normal: interpolated.terrain_data.normal,
-                color: PixelColor::Terrain,
-            });
-            return result;
+            step_result.push((
+                prop,
+                ResultPixel {
+                    lat: interpolated.terrain_data.lat,
+                    lon: interpolated.terrain_data.lon,
+                    distance: interpolated.dist,
+                    elevation: interpolated.terrain_data.elev,
+                    path_length: interpolated.path_len,
+                    normal: interpolated.terrain_data.normal,
+                    color: PixelColor::Terrain,
+                },
+            ));
+            finish = true;
         }
         if new_tracing_state.terrain_data.object_close
             || old_tracing_state.terrain_data.object_close
@@ -261,20 +266,28 @@ pub fn get_single_pixel(
                     new_tracing_state.ray_coords(),
                 ) {
                     let interpolated = old_tracing_state.interpolate(&new_tracing_state, prop);
-                    result.push(ResultPixel {
-                        lat: interpolated.terrain_data.lat,
-                        lon: interpolated.terrain_data.lon,
-                        distance: interpolated.dist,
-                        elevation: interpolated.ray_elev,
-                        path_length: interpolated.path_len,
-                        normal,
-                        color: PixelColor::Rgba(color),
-                    });
+                    step_result.push((
+                        prop,
+                        ResultPixel {
+                            lat: interpolated.terrain_data.lat,
+                            lon: interpolated.terrain_data.lon,
+                            distance: interpolated.dist,
+                            elevation: interpolated.ray_elev,
+                            path_length: interpolated.path_len,
+                            normal,
+                            color: PixelColor::Rgba(color),
+                        },
+                    ));
                     if color.a == 1.0 {
-                        return result;
+                        finish = true;
                     }
                 }
             }
+        }
+        step_result.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        result.extend(step_result.into_iter().map(|p| p.1));
+        if finish {
+            break;
         }
         old_tracing_state = new_tracing_state;
     }
