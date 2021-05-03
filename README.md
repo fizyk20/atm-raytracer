@@ -50,7 +50,6 @@ Simulation environment options:
 
 * `-R, --radius RADIUS` - the Earth's simulated radius, conflicts with `--flat`
 * `--flat` - simulate a flat Earth; conflicts with `--radius`
-* `--atmosphere PATH` - path to a file describing the atmosphere configuration; documented below
 * `-s, --straight` - propagate light rays along straight lines (by default the rays are bent according to the atmospheric temperature and pressure)
 * `--step STEP` - when simulating a light ray, a single simulation step will be by this many meters
 
@@ -60,43 +59,6 @@ Output options:
 * `--output-meta PATH` - metadata will be save in a file under this name
 * `-w, --width PIXELS` - the output image width in pixels
 * `-h, --height PIXELS` - the output image height in pixels
-
-### Atmosphere Configuration
-
-The structure of the atmosphere can be defined either in a separate file, or as part of the YAML config file.
-
-It consists of:
-- atmospheric pressure at some altitude, in pascals
-- air temperature at some altitude, in kelvins
-- a list of temperature gradients (lapse rates)
-
-An example configuration could be:
-
-```
-pressure(0) = 101325
-temperature:
-  at(0) = 288
-  lapse() = -0.0065
-  lapse(11e3) = 0
-```
-
-(All whitespaces, except line breaks, are optional.)
-
-Let's go through it line by line:
-
-1. `pressure(0) = 101325` defines the pressure at altitude 0 to be 101325 pascals. The altitude can be anything, for example `pressure(1000) = 95000` would define the pressure at 1000 m ASL to be 950 hPa. Only a single `pressure` line is allowed, the pressure at all other altitudes is calculated based on the temperature profile and the ideal gas law.
-2. `temperature:` begins the temperature profile definition section.
-3. `at(0) = 288` defines temperature at altitude 0 to be 288 K. As with the pressure, other altitudes and temperatures can be set, for example `at(500) = 280` sets the temperature at 500 m ASL to be 280 K. As with the pressure, only a single `at` line is allowed.
-4. `lapse() = -0.0065` defines the temperature gradient at all altitudes from negative infinity to be -0.0065 K/m (the temperature drops by 0.0065 kelvins for every meter of altitude). The other `lapse` lines can define layers with different gradients, see below.
-5. `lapse(11e3) = 0` states that the gradient should become 0 at altitudes 11e3 = 11000 meters and above. There can be multiple such `lapse` lines: every such line sets the temperature gradient at the given altitude and above.
-
-To elaborate on that last point: if, for example, you want the temperature gradient to start at 0.1 K/m, change to 0.05 K/m at 10 m ASL, then to -0.01 K/m at 50 m ASL, you would write the following:
-
-```
-lapse() = 0.1
-lapse(10) = 0.05
-lapse(50) = -0.01
-```
 
 ### YAML config
 
