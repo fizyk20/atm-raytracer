@@ -8,7 +8,7 @@ use crate::{
 };
 
 use atm_refraction::{
-    air::{atm_from_str, get_atmosphere, us76_atmosphere, Atmosphere},
+    air::{Atmosphere, AtmosphereDef},
     EarthShape, Environment,
 };
 use clap::{App, AppSettings, Arg};
@@ -319,19 +319,13 @@ impl Default for Output {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub enum AtmosphereDef {
-    Path(String),
-    Definition(String),
-    Atmosphere(Atmosphere),
-}
-
-#[derive(Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
     scene: ConfScene,
     #[serde(default)]
     view: ConfView,
-    atmosphere: Option<AtmosphereDef>,
+    #[serde(default = "AtmosphereDef::us_76")]
+    atmosphere: AtmosphereDef,
     #[serde(default = "default_earth_shape")]
     earth_shape: EarthShape,
     #[serde(default)]
@@ -357,7 +351,7 @@ impl Default for Config {
         Config {
             scene: Default::default(),
             view: Default::default(),
-            atmosphere: None,
+            atmosphere: AtmosphereDef::us_76(),
             earth_shape: default_earth_shape(),
             straight_rays: false,
             simulation_step: default_simulation_step(),
@@ -398,19 +392,7 @@ impl Config {
 
     pub fn into_params(self, terrain: &Terrain) -> Params {
         let scene = self.scene.into_scene(terrain);
-        let atmosphere = if let Some(atm_def) = self.atmosphere {
-            match atm_def {
-                AtmosphereDef::Path(path) => {
-                    let mut atm_abs_path = env::current_dir().unwrap();
-                    atm_abs_path.push(&path);
-                    get_atmosphere(&atm_abs_path)
-                }
-                AtmosphereDef::Definition(def) => atm_from_str(&def).unwrap(),
-                AtmosphereDef::Atmosphere(atm) => atm,
-            }
-        } else {
-            us76_atmosphere()
-        };
+        let atmosphere = Atmosphere::from_def(self.atmosphere);
         Params {
             scene,
             view: self.view.into_view(&self.earth_shape),
@@ -435,13 +417,6 @@ pub fn parse_config() -> Config {
                 .long("terrain")
                 .value_name("PATH")
                 .help("Path to the folder with terrain files (./terrain assumed if none)")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("atmosphere")
-                .long("atmosphere")
-                .value_name("FILE")
-                .help("Path to atmosphere config file (US76 atmosphere assumed if none)")
                 .takes_value(true),
         )
         .arg(
@@ -648,11 +623,6 @@ pub fn parse_config() -> Config {
 
     if let Some(step) = matches.value_of("step") {
         config.simulation_step = step.parse().expect("Invalid step value");
-    }
-
-    if let Some(atmosphere) = matches.value_of("atmosphere") {
-        let atmosphere = get_atmosphere(&atmosphere);
-        config.atmosphere = Some(AtmosphereDef::Atmosphere(atmosphere));
     }
 
     match (matches.is_present("flat"), matches.value_of("radius")) {
