@@ -240,25 +240,28 @@ atmosphere:
         Linear:
             gradient: -0.0065
     next_functions:
-        - Spline:
-            boundary_condition:
-                # Can be "Natural", "Derivatives" with two numbers, or "SecondDerivatives" with two numbers
-                # The example below sets the boundary condition so that the initial derivative should be
-                # -0.0065, and the final derivative should be 0.0
-                Derivatives:
-                    - -0.0065
-                    - 0.0
-            # A list of pairs (altitude, temperature)
-            points:
-                -
-                    - 0.0
-                    - 288.0
-                -
-                    - 10.0
-                    - 285.0
-                -
-                    - 20.0
-                    - 291.0
+        # next function will be used at altitudes 100.0 and above
+        - altitude: 100.0
+          function:
+            Spline:
+                boundary_condition:
+                    # Can be "Natural", "Derivatives" with two numbers, or "SecondDerivatives" with two numbers
+                    # The example below sets the boundary condition so that the initial derivative should be
+                    # -0.0065, and the final derivative should be 0.0
+                    Derivatives:
+                        - -0.0065
+                        - 0.0
+                # A list of pairs (altitude, temperature)
+                points:
+                    -
+                        - 100.0
+                        - 288.0
+                    -
+                        - 110.0
+                        - 285.0
+                    -
+                        - 120.0
+                        - 291.0
     # if there are only Linear variants among function definitions, nothing defines the value of temperature
     # itself at any point, so it has to be additionally defined here; if at least one Spline is used, this
     # shouldn't be present:
