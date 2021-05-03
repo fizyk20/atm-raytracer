@@ -103,8 +103,50 @@ lapse(50) = -0.01
 The example config below illustrates the usage:
 
 ```yaml
-# the path to the folder with terrain data
-terrain_folder: /home/user/atm-raytracer/terrain
+# scene settings:
+scene:
+    # the path to the folder with terrain data
+    terrain_folder: /home/user/atm-raytracer/terrain
+    # any objects defined on the scene
+    objects:
+        # A Billboard - a textured rectangle
+        # the object's position first
+        - position:
+            latitude: 1.2345
+            longitude: -3.45678
+            altitude:
+                Absolute: 8.0
+          # Color is not used for billboards
+          color:
+            r: 0.5
+            g: 0.0
+            b: 0.0
+          shape:
+            Billboard:
+                # width and height define the dimensions
+                width: 164.125
+                height: 65.0
+                # path to the texture
+                # textures can take advantage of transparency
+                texture_path: ./texture.png
+        # A simple, single-colored cylinder
+        - position:
+            latitude: 1.3456
+            longitude: -3.5678
+            altitude:
+                Relative: 0.0
+          # Color matters this time
+          color:
+            r: 0.5
+            g: 0.0
+            b: 0.5
+            # It can be translucent - alpha is assumed to be 1.0 if omitted
+            # a: 0.5
+          shape:
+            Cylinder:
+                # A cylinder has a radius and a height
+                radius: 3.0
+                height: 55.0
 
 # view configuration
 view:
