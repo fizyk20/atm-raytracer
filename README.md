@@ -222,17 +222,43 @@ output:
     show_eye_level: true
 
 # atmosphere structure definition
-# can be either:
-# Path: path/to/file.cfg
-# or
-# Definition: atmosphere-config-string
-# if Definition is being used, it will usually look like below, with the pipe character indicating
-# that a multi-line value follows
+# if this isn't present, a US-76 atmosphere is assumed
 atmosphere:
-    Definition: |
-        pressure(0) = 101325
-        temperature:
-        at(0) = 288
-        lapse() = -0.0065
-        lapse(11e3) = 0.0
+    # Pressure fixed point (a value at a given altitude):
+    pressure:
+        altitude: 0.0
+        # pressure in hPa
+        pressure: 101325
+    # a definition of the temperature function that will be used for altitudes from -infinity up to
+    # the first altitude defined in next_functions
+    first_temperature_function:
+        # can be either "Linear" or "Spline"; an example of "Spline" below
+        Linear:
+            gradient: -0.0065
+    next_functions:
+        - Spline:
+            boundary_condition:
+                # Can be "Natural", "Derivatives" with two numbers, or "SecondDerivatives" with two numbers
+                # The example below sets the boundary condition so that the initial derivative should be
+                # -0.0065, and the final derivative should be 0.0
+                Derivatives:
+                    - -0.0065
+                    - 0.0
+            # A list of pairs (altitude, temperature)
+            points:
+                -
+                    - 0.0
+                    - 288.0
+                -
+                    - 10.0
+                    - 285.0
+                -
+                    - 20.0
+                    - 291.0
+    # if there are only Linear variants among function definitions, nothing defines the value of temperature
+    # itself at any point, so it has to be additionally defined here; if at least one Spline is used, this
+    # shouldn't be present:
+    # temperature_fixed_point:
+    #     altitude: 0.0
+    #     temperature: 288.0
 ```
