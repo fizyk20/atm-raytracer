@@ -228,7 +228,12 @@ fn output_metadata(filename: &str, pixels: Vec<Vec<Vec<ResultPixel>>>, params: P
 }
 
 fn main() {
-    let config = params::parse_config();
+    let config = match params::parse_config() {
+        Ok(config) => config,
+        Err(_) => {
+            return;
+        }
+    };
 
     let mut terrain_folder = env::current_dir().unwrap();
     terrain_folder.push(config.terrain_folder());

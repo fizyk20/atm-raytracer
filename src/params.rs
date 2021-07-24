@@ -407,7 +407,7 @@ impl Config {
     }
 }
 
-pub fn parse_config() -> Config {
+pub fn parse_config() -> Result<Config, ()> {
     let matches = App::new("Atmospheric Panorama Raytracer")
         .version("0.4")
         .setting(AppSettings::AllowLeadingHyphen)
@@ -553,6 +553,13 @@ pub fn parse_config() -> Config {
                 .help("Path to a config file with alternative defaults")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("output-atm-data")
+                .long("output-atm-data")
+                .help("With this switch, the program only outputs the profile of pressure and\
+                    temperature to a file.")
+                .takes_value(false),
+        )
         .get_matches();
 
     let mut config = if let Some(config_path) = matches.value_of("config") {
@@ -641,5 +648,23 @@ pub fn parse_config() -> Config {
         config.straight_rays = true;
     }
 
-    config
+    if matches.is_present("output-atm-data") {
+        output_atm_data(&config);
+        Err(())
+    } else {
+        Ok(config)
+    }
+}
+
+fn output_atm_data(config: &Config) {
+    let atmosphere = Atmosphere::from_def(config.atmosphere.clone());
+    for alt in 0..=5000 {
+        let alt = alt as f64 * 0.2;
+        println!(
+            "{} {} {}",
+            alt,
+            atmosphere.temperature(alt),
+            atmosphere.pressure(alt)
+        );
+    }
 }
