@@ -100,7 +100,7 @@ pub fn gen_path_cache(params: &Params, terrain: &Terrain, y: u16) -> Vec<PathEle
             elev: ray_state.h,
             path_length,
         });
-        if ray_state.x > params.view.frame.max_distance {
+        if ray_state.x > params.view.frame.max_distance || ray_state.h < -1000.0 {
             break;
         }
         ray_state = new_ray_state;
