@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     object::{Color, Object},
     params::Params,
@@ -107,13 +109,13 @@ pub fn gen_path_cache(params: &Params, terrain: &Terrain, y: u16) -> Vec<PathEle
     path
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct TerrainData {
     lat: f64,
     lon: f64,
     elev: f64,
     normal: Vector3<f64>,
-    object_close: bool,
+    objects_close: Vec<usize>,
 }
 
 fn find_normal(shape: &EarthShape, lat: f64, lon: f64, terrain: &Terrain) -> Vector3<f64> {
@@ -157,17 +159,20 @@ pub fn gen_terrain_cache(params: &Params, terrain: &Terrain, x: u16) -> Vec<Terr
             distance,
         );
         let normal = find_normal(&params.env.shape, lat, lon, terrain);
-        let object_close = params
+        let objects_close = params
             .scene
             .objects
             .iter()
-            .any(|obj| obj.is_close(&params.env.shape, params.simulation_step, lat, lon));
+            .enumerate()
+            .filter(|(_, obj)| obj.is_close(&params.env.shape, params.simulation_step, lat, lon))
+            .map(|(index, _)| index)
+            .collect();
         result.push(TerrainData {
             lat,
             lon,
             elev: terrain.get_elev(lat, lon).unwrap_or(0.0),
             normal,
-            object_close,
+            objects_close,
         });
     }
 
@@ -182,9 +187,9 @@ struct TracingState {
 }
 
 impl TracingState {
-    fn new(terrain_data: TerrainData, ray_elev: f64, dist: f64, path_len: f64) -> Self {
+    fn new(terrain_data: &TerrainData, ray_elev: f64, dist: f64, path_len: f64) -> Self {
         Self {
-            terrain_data,
+            terrain_data: terrain_data.clone(),
             ray_elev,
             dist,
             path_len,
@@ -202,7 +207,7 @@ impl TracingState {
                     + (other.terrain_data.elev - self.terrain_data.elev) * prop,
                 normal: self.terrain_data.normal
                     + (other.terrain_data.normal - self.terrain_data.normal) * prop,
-                object_close: false,
+                objects_close: vec![],
             },
             ray_elev: self.ray_elev + (other.ray_elev - self.ray_elev) * prop,
             dist: self.dist + (other.dist - self.dist) * prop,
@@ -225,14 +230,14 @@ pub fn get_single_pixel(
     objects: &[Object],
     earth_shape: &EarthShape,
 ) -> Vec<ResultPixel> {
-    let mut old_tracing_state = TracingState::new(terrain_cache[0], path_cache[0].elev, 0.0, 0.0);
+    let mut old_tracing_state = TracingState::new(&terrain_cache[0], path_cache[0].elev, 0.0, 0.0);
     let mut result = vec![];
 
     for (terrain_data, path_elem) in terrain_cache.iter().zip(path_cache).skip(1) {
         let mut finish = false;
         let mut step_result = vec![];
         let new_tracing_state = TracingState::new(
-            *terrain_data,
+            terrain_data,
             path_elem.elev,
             path_elem.dist,
             path_elem.path_length,
@@ -256,10 +261,18 @@ pub fn get_single_pixel(
             ));
             finish = true;
         }
-        if new_tracing_state.terrain_data.object_close
-            || old_tracing_state.terrain_data.object_close
+        if !new_tracing_state.terrain_data.objects_close.is_empty()
+            || !old_tracing_state.terrain_data.objects_close.is_empty()
         {
-            for object in objects {
+            let object_indices: HashSet<usize> = old_tracing_state
+                .terrain_data
+                .objects_close
+                .iter()
+                .chain(new_tracing_state.terrain_data.objects_close.iter())
+                .copied()
+                .collect();
+            for object_index in object_indices {
+                let object = &objects[object_index];
                 if let Some((prop, normal, color)) = object.check_collision(
                     earth_shape,
                     old_tracing_state.ray_coords(),
