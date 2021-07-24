@@ -13,6 +13,7 @@ use std::{
     env, fs,
     io::Write,
     sync::atomic::{AtomicUsize, Ordering},
+    time::SystemTime,
 };
 
 use crate::{
@@ -238,24 +239,39 @@ fn main() {
     let mut terrain_folder = env::current_dir().unwrap();
     terrain_folder.push(config.terrain_folder());
 
-    println!("Using terrain data directory: {:?}", terrain_folder);
+    let start = SystemTime::now();
+
+    println!(
+        "{}: Using terrain data directory: {:?}",
+        start.elapsed().unwrap().as_secs_f64(),
+        terrain_folder
+    );
 
     let terrain = Terrain::from_folder(terrain_folder);
 
     let params = config.into_params(&terrain);
 
-    println!("Generating terrain cache...");
+    println!(
+        "{}: Generating terrain cache...",
+        start.elapsed().unwrap().as_secs_f64()
+    );
     let terrain_cache = (0..params.output.width)
         .into_par_iter()
         .map(|x| gen_terrain_cache(&params, &terrain, x as u16))
         .collect::<Vec<_>>();
-    println!("Generating path cache...");
+    println!(
+        "{}: Generating path cache...",
+        start.elapsed().unwrap().as_secs_f64()
+    );
     let path_cache = (0..params.output.height)
         .into_par_iter()
         .map(|y| gen_path_cache(&params, &terrain, y as u16))
         .collect::<Vec<_>>();
 
-    println!("Calculating pixels...");
+    println!(
+        "{}: Calculating pixels...",
+        start.elapsed().unwrap().as_secs_f64()
+    );
     let count_pixels = AtomicUsize::new(0);
     let total_pixels = params.output.width as usize * params.output.height as usize;
     let result_pixels = (0..params.output.height)
@@ -282,11 +298,17 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-    println!("Outputting image...");
+    println!(
+        "{}: Outputting image...",
+        start.elapsed().unwrap().as_secs_f64()
+    );
     output_image(&result_pixels, &params);
 
     if let Some(ref filename) = params.output.file_metadata {
-        println!("Outputting metadata...");
+        println!(
+            "{}: Outputting metadata...",
+            start.elapsed().unwrap().as_secs_f64()
+        );
         output_metadata(filename, result_pixels, params.clone());
     }
 }
