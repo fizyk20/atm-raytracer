@@ -1,6 +1,6 @@
 use super::ColoringMethod;
 
-use crate::generate::{PixelColor, ResultPixel};
+use crate::rendering::{PixelColor, ResultPixel};
 
 use image::Rgb;
 use nalgebra::Vector3;

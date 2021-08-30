@@ -1,7 +1,7 @@
 mod coloring;
-mod generate;
 mod object;
 mod params;
+mod rendering;
 mod terrain;
 mod utils;
 
@@ -12,13 +12,12 @@ use std::{
     collections::{hash_map::Entry, HashMap},
     env, fs,
     io::Write,
-    sync::atomic::{AtomicUsize, Ordering},
     time::SystemTime,
 };
 
 use crate::{
-    generate::{gen_path_cache, gen_terrain_cache, get_single_pixel, ResultPixel},
     params::{Params, Tick},
+    rendering::{FastGenerator, Generator, ResultPixel},
     terrain::Terrain,
     utils::{rgb_to_vec3, vec3_to_rgb},
 };
@@ -26,7 +25,6 @@ use crate::{
 use image::{ImageBuffer, Pixel, Rgb};
 use imageproc::drawing::{draw_line_segment_mut, draw_text_mut};
 use libflate::gzip::Encoder;
-use rayon::prelude::*;
 use rusttype::{FontCollection, Scale};
 
 static FONT: &[u8] = include_bytes!("DejaVuSans.ttf");
@@ -251,52 +249,9 @@ fn main() {
 
     let params = config.into_params(&terrain);
 
-    println!(
-        "{}: Generating terrain cache...",
-        start.elapsed().unwrap().as_secs_f64()
-    );
-    let terrain_cache = (0..params.output.width)
-        .into_par_iter()
-        .map(|x| gen_terrain_cache(&params, &terrain, x as u16))
-        .collect::<Vec<_>>();
-    println!(
-        "{}: Generating path cache...",
-        start.elapsed().unwrap().as_secs_f64()
-    );
-    let path_cache = (0..params.output.height)
-        .into_par_iter()
-        .map(|y| gen_path_cache(&params, &terrain, y as u16))
-        .collect::<Vec<_>>();
+    let generator = FastGenerator;
 
-    println!(
-        "{}: Calculating pixels...",
-        start.elapsed().unwrap().as_secs_f64()
-    );
-    let count_pixels = AtomicUsize::new(0);
-    let total_pixels = params.output.width as usize * params.output.height as usize;
-    let result_pixels = (0..params.output.height)
-        .into_par_iter()
-        .map(|y| {
-            (0..params.output.width)
-                .into_par_iter()
-                .map(|x| {
-                    let pixel = get_single_pixel(
-                        &terrain_cache[x as usize],
-                        &path_cache[y as usize],
-                        &params.scene.objects,
-                        &params.env.shape,
-                    );
-                    let pixels_done = count_pixels.fetch_add(1, Ordering::SeqCst);
-                    let prev_percent = pixels_done * 100 / total_pixels;
-                    let new_percent = (pixels_done + 1) * 100 / total_pixels;
-                    if new_percent > prev_percent {
-                        println!("{}%...", new_percent);
-                    }
-                    pixel
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
+    let result_pixels = generator.generate(&params, &terrain, start);
 
     println!(
         "{}: Outputting image...",

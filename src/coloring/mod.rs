@@ -1,7 +1,7 @@
 mod shading;
 mod simple;
 
-use crate::generate::ResultPixel;
+use crate::rendering::ResultPixel;
 
 use image::Rgb;
 
