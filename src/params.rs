@@ -278,6 +278,12 @@ pub enum Tick {
     },
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub enum GeneratorDef {
+    Fast,
+    Correct,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Output {
     #[serde(default = "default_file")]
@@ -291,6 +297,8 @@ pub struct Output {
     pub ticks: Vec<Tick>,
     #[serde(default)]
     pub show_eye_level: bool,
+    #[serde(default = "default_generator")]
+    pub generator: GeneratorDef,
 }
 
 fn default_file() -> String {
@@ -305,6 +313,10 @@ fn default_height() -> u16 {
     480
 }
 
+fn default_generator() -> GeneratorDef {
+    GeneratorDef::Fast
+}
+
 impl Default for Output {
     fn default() -> Output {
         Output {
@@ -314,6 +326,7 @@ impl Default for Output {
             height: default_height(),
             ticks: Vec::new(),
             show_eye_level: false,
+            generator: default_generator(),
         }
     }
 }

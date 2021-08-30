@@ -16,8 +16,8 @@ use std::{
 };
 
 use crate::{
-    params::{Params, Tick},
-    rendering::{FastGenerator, Generator, ResultPixel},
+    params::{GeneratorDef, Params, Tick},
+    rendering::{CorrectGenerator, FastGenerator, Generator, ResultPixel},
     terrain::Terrain,
     utils::{rgb_to_vec3, vec3_to_rgb},
 };
@@ -249,7 +249,10 @@ fn main() {
 
     let params = config.into_params(&terrain);
 
-    let generator = FastGenerator;
+    let generator: Box<dyn Generator> = match params.output.generator {
+        GeneratorDef::Fast => Box::new(FastGenerator),
+        GeneratorDef::Correct => Box::new(CorrectGenerator),
+    };
 
     let result_pixels = generator.generate(&params, &terrain, start);
 

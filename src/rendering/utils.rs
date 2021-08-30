@@ -169,20 +169,20 @@ impl TracingState {
     }
 }
 
-pub fn get_single_pixel<'a, 'b, I: Iterator<Item = (&'a TerrainData, &'b PathElem)>>(
+pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
     mut terrain_and_path: I,
     objects: &[Object],
     earth_shape: &EarthShape,
 ) -> Vec<ResultPixel> {
     let (first_terrain, first_path) = terrain_and_path.next().unwrap();
-    let mut old_tracing_state = TracingState::new(first_terrain, first_path.elev, 0.0, 0.0);
+    let mut old_tracing_state = TracingState::new(&first_terrain, first_path.elev, 0.0, 0.0);
     let mut result = vec![];
 
     for (terrain_data, path_elem) in terrain_and_path {
         let mut finish = false;
         let mut step_result = vec![];
         let new_tracing_state = TracingState::new(
-            terrain_data,
+            &terrain_data,
             path_elem.elev,
             path_elem.dist,
             path_elem.path_length,

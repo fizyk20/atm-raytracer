@@ -54,7 +54,8 @@ impl Generator for FastGenerator {
                         let pixel = get_single_pixel(
                             terrain_cache[x as usize]
                                 .iter()
-                                .zip(path_cache[y as usize].iter()),
+                                .cloned()
+                                .zip(path_cache[y as usize].iter().copied()),
                             &params.scene.objects,
                             &params.env.shape,
                         );
@@ -64,8 +65,8 @@ impl Generator for FastGenerator {
                         if new_percent > prev_percent {
                             println!(
                                 "{}: {}%...",
+                                start.elapsed().unwrap().as_secs_f64(),
                                 new_percent,
-                                start.elapsed().unwrap().as_secs_f64()
                             );
                         }
                         pixel
