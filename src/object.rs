@@ -191,7 +191,7 @@ impl Object {
                 let wv = w.dot(&v);
 
                 let a = wsq - wv * wv;
-                let b = 2.0 * (p1v * wv + p1w - 2.0 * p1v * wv - wv * wv);
+                let b = 2.0 * (p1w - p1v * wv);
                 let c = p1sq - p1v * p1v - radius * radius;
 
                 let delta = b * b - 4.0 * a * c;
