@@ -15,9 +15,9 @@ use super::{
 
 use crate::{params::Params, terrain::Terrain};
 
-pub struct CorrectGenerator;
+pub struct RectilinearGenerator;
 
-impl Generator for CorrectGenerator {
+impl Generator for RectilinearGenerator {
     fn generate(
         &self,
         params: &Params,

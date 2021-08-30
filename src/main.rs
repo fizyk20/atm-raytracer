@@ -17,7 +17,7 @@ use std::{
 
 use crate::{
     params::{GeneratorDef, Params, Tick},
-    rendering::{CorrectGenerator, FastGenerator, Generator, ResultPixel},
+    rendering::{FastGenerator, Generator, RectilinearGenerator, ResultPixel},
     terrain::Terrain,
     utils::{rgb_to_vec3, vec3_to_rgb},
 };
@@ -251,7 +251,7 @@ fn main() {
 
     let generator: Box<dyn Generator> = match params.output.generator {
         GeneratorDef::Fast => Box::new(FastGenerator),
-        GeneratorDef::Correct => Box::new(CorrectGenerator),
+        GeneratorDef::Rectilinear => Box::new(RectilinearGenerator),
     };
 
     let result_pixels = generator.generate(&params, &terrain, start);

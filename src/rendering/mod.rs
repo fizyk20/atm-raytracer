@@ -1,5 +1,5 @@
-mod correct;
 mod fast;
+mod rectilinear;
 mod utils;
 
 use std::time::SystemTime;
@@ -8,8 +8,8 @@ use nalgebra::Vector3;
 
 use crate::{object::Color, params::Params, terrain::Terrain};
 
-pub use correct::CorrectGenerator;
 pub use fast::FastGenerator;
+pub use rectilinear::RectilinearGenerator;
 pub use utils::*;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

@@ -281,7 +281,7 @@ pub enum Tick {
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum GeneratorDef {
     Fast,
-    Correct,
+    Rectilinear,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
