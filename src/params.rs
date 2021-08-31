@@ -383,21 +383,6 @@ pub struct Params {
     pub output: Output,
 }
 
-impl Params {
-    pub fn azimuth_to_x(&self, azimuth: f64) -> u32 {
-        let x01 = (azimuth - self.view.frame.direction) / self.view.frame.fov + 0.5;
-        ((self.output.width as f64) * x01) as u32
-    }
-
-    pub fn eye_level_to_y(&self) -> u32 {
-        let width = self.output.width as f64;
-        let height = self.output.height as f64;
-        let aspect = width / height;
-        let yf = self.view.frame.tilt * aspect / self.view.frame.fov;
-        ((yf + 0.5) * height) as u32
-    }
-}
-
 impl Config {
     pub fn terrain_folder(&self) -> &str {
         &self.scene.terrain_folder

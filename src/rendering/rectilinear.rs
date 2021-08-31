@@ -90,8 +90,8 @@ impl Cache {
                 &params.env.shape,
             );
             let result = ResultPixel {
-                elevation_angle: point.elev_index as f64 * self.min_elev_step,
-                azimuth: point.dir_index as f64 * self.min_dir_step,
+                elevation_angle: (point.elev_index as f64 * self.min_elev_step).to_degrees(),
+                azimuth: (point.dir_index as f64 * self.min_dir_step).to_degrees(),
                 trace_points,
             };
             self.pixels.write().unwrap().insert(point, result.clone());

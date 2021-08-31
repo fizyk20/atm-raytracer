@@ -35,14 +35,43 @@ struct DrawTick {
     labelled: bool,
 }
 
-fn into_draw_ticks(tick: &Tick, params: &Params) -> Vec<(u32, DrawTick)> {
+fn diff_azimuth(az1: f64, az2: f64) -> f64 {
+    let diff = az1 - az2;
+    if diff < -180.0 {
+        diff + 360.0
+    } else if diff > 180.0 {
+        diff - 360.0
+    } else {
+        diff
+    }
+}
+
+fn azimuth_to_x(azimuth: f64, pixels: &[Vec<ResultPixel>]) -> u32 {
+    pixels[0]
+        .iter()
+        .enumerate()
+        .min_by(|(_, pixel1), (_, pixel2)| {
+            diff_azimuth(azimuth, pixel1.azimuth)
+                .abs()
+                .partial_cmp(&diff_azimuth(azimuth, pixel2.azimuth).abs())
+                .unwrap()
+        })
+        .map(|(idx, _)| idx as u32)
+        .unwrap()
+}
+
+fn into_draw_ticks(
+    tick: &Tick,
+    params: &Params,
+    pixels: &[Vec<ResultPixel>],
+) -> Vec<(u32, DrawTick)> {
     match *tick {
         Tick::Single {
             azimuth,
             size,
             labelled,
         } => {
-            let x = params.azimuth_to_x(azimuth);
+            let x = azimuth_to_x(azimuth, pixels);
             vec![(
                 x,
                 DrawTick {
@@ -63,13 +92,20 @@ fn into_draw_ticks(tick: &Tick, params: &Params) -> Vec<(u32, DrawTick)> {
             let mut current_az = ((min_az - bias) / step).ceil() * step + bias;
             let mut result = Vec::new();
             while current_az < max_az {
-                let x = params.azimuth_to_x(current_az);
+                let azimuth = if current_az < 0.0 {
+                    current_az + 360.0
+                } else if current_az >= 360.0 {
+                    current_az - 360.0
+                } else {
+                    current_az
+                };
+                let x = azimuth_to_x(current_az, pixels);
                 result.push((
                     x,
                     DrawTick {
                         size,
                         labelled,
-                        azimuth: current_az,
+                        azimuth,
                     },
                 ));
                 current_az += step;
@@ -79,10 +115,10 @@ fn into_draw_ticks(tick: &Tick, params: &Params) -> Vec<(u32, DrawTick)> {
     }
 }
 
-fn gen_ticks(params: &Params) -> HashMap<u32, DrawTick> {
+fn gen_ticks(params: &Params, pixels: &[Vec<ResultPixel>]) -> HashMap<u32, DrawTick> {
     let mut result = HashMap::new();
     for tick in &params.output.ticks {
-        let new_ticks = into_draw_ticks(tick, params);
+        let new_ticks = into_draw_ticks(tick, params, pixels);
         for (x, tick) in new_ticks {
             match result.entry(x) {
                 Entry::Vacant(v) => {
@@ -99,7 +135,11 @@ fn gen_ticks(params: &Params) -> HashMap<u32, DrawTick> {
     result
 }
 
-fn draw_ticks(img: &mut ImageBuffer<Rgb<u8>, Vec<<Rgb<u8> as Pixel>::Subpixel>>, params: &Params) {
+fn draw_ticks(
+    img: &mut ImageBuffer<Rgb<u8>, Vec<<Rgb<u8> as Pixel>::Subpixel>>,
+    params: &Params,
+    pixels: &[Vec<ResultPixel>],
+) {
     let font = FontCollection::from_bytes(FONT)
         .unwrap()
         .into_font()
@@ -109,7 +149,7 @@ fn draw_ticks(img: &mut ImageBuffer<Rgb<u8>, Vec<<Rgb<u8> as Pixel>::Subpixel>>,
         x: height,
         y: height,
     };
-    let ticks = gen_ticks(params);
+    let ticks = gen_ticks(params, pixels);
     for (x, tick) in ticks {
         draw_line_segment_mut(
             img,
@@ -131,18 +171,35 @@ fn draw_ticks(img: &mut ImageBuffer<Rgb<u8>, Vec<<Rgb<u8> as Pixel>::Subpixel>>,
     }
 }
 
+fn find_eye_level(pixels: &[Vec<ResultPixel>], column: u32) -> u32 {
+    let mut min_elev = f64::INFINITY;
+    let mut min_elev_idx = 0;
+    for (y, row) in pixels.iter().enumerate() {
+        if row[column as usize].elevation_angle.abs() < min_elev {
+            min_elev = row[column as usize].elevation_angle.abs();
+            min_elev_idx = y;
+        }
+    }
+    min_elev_idx as u32
+}
+
 fn draw_eye_level(
     img: &mut ImageBuffer<Rgb<u8>, Vec<<Rgb<u8> as Pixel>::Subpixel>>,
     params: &Params,
+    pixels: &[Vec<ResultPixel>],
 ) {
     if params.output.show_eye_level {
-        let y = params.eye_level_to_y() as f32;
-        draw_line_segment_mut(
-            img,
-            (0.0_f32, y),
-            (params.output.width as f32, y),
-            Rgb([255, 128, 255]),
-        );
+        let mut y_old = find_eye_level(pixels, 0);
+        for x in 1..params.output.width {
+            let y_new = find_eye_level(pixels, x as u32);
+            draw_line_segment_mut(
+                img,
+                ((x - 1) as f32, y_old as f32),
+                (x as f32, y_new as f32),
+                Rgb([255, 128, 255]),
+            );
+            y_old = y_new;
+        }
     }
 }
 
@@ -190,8 +247,8 @@ fn output_image(pixels: &[Vec<ResultPixel>], params: &Params) {
         *px = blend(result, def_color, curr_alpha);
     }
 
-    draw_ticks(&mut img, &params);
-    draw_eye_level(&mut img, &params);
+    draw_ticks(&mut img, &params, pixels);
+    draw_eye_level(&mut img, &params, pixels);
 
     let mut output_file = env::current_dir().unwrap();
     output_file.push(&params.output.file);
