@@ -28,6 +28,20 @@ pub struct TracePoint {
     pub color: PixelColor,
 }
 
+impl TracePoint {
+    pub fn interpolate(&self, other: &TracePoint, coeff: f64) -> Self {
+        Self {
+            lat: self.lat * (1.0 - coeff) + other.lat * coeff,
+            lon: self.lon * (1.0 - coeff) + other.lon * coeff,
+            distance: self.distance * (1.0 - coeff) + other.distance * coeff,
+            elevation: self.elevation * (1.0 - coeff) + other.elevation * coeff,
+            path_length: self.path_length * (1.0 - coeff) + other.path_length * coeff,
+            normal: self.normal * (1.0 - coeff) + other.normal * coeff,
+            color: self.color.interpolate(&other.color, coeff),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum PixelColor {
     Terrain,
@@ -39,6 +53,24 @@ impl PixelColor {
         match self {
             PixelColor::Rgba(color) => color.a,
             PixelColor::Terrain => 1.0,
+        }
+    }
+
+    pub fn same_class(&self, other: &PixelColor) -> bool {
+        match (self, other) {
+            (PixelColor::Terrain, PixelColor::Terrain) => true,
+            (PixelColor::Rgba(_), PixelColor::Rgba(_)) => true,
+            _ => false,
+        }
+    }
+
+    pub fn interpolate(&self, other: &PixelColor, coeff: f64) -> PixelColor {
+        match (self, other) {
+            (PixelColor::Terrain, PixelColor::Terrain) => PixelColor::Terrain,
+            (PixelColor::Rgba(color1), PixelColor::Rgba(color2)) => {
+                PixelColor::Rgba(color1.interpolate(*color2, coeff))
+            }
+            _ => PixelColor::Terrain,
         }
     }
 }

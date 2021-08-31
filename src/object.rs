@@ -118,6 +118,17 @@ fn default_alpha() -> f64 {
     1.0
 }
 
+impl Color {
+    pub fn interpolate(self, other: Color, coeff: f64) -> Color {
+        Color {
+            r: self.r * (1.0 - coeff) + other.r * coeff,
+            g: self.g * (1.0 - coeff) + other.g * coeff,
+            b: self.b * (1.0 - coeff) + other.b * coeff,
+            a: self.a * (1.0 - coeff) + other.a * coeff,
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ConfObject {
     position: Position,

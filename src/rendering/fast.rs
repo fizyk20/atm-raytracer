@@ -6,8 +6,7 @@ use std::{
 use rayon::prelude::*;
 
 use super::{
-    calc_dist, get_coords_at_dist,
-    utils::{get_single_pixel, PathElem, TerrainData},
+    utils::{gen_path_cache, gen_terrain_cache, get_single_pixel},
     Generator, ResultPixel,
 };
 
@@ -27,7 +26,10 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
         );
         let terrain_cache = (0..self.params.output.width)
             .into_par_iter()
-            .map(|x| gen_terrain_cache(self.params, self.terrain, x as u16))
+            .map(|x| {
+                let dir = get_ray_dir(self.params, x as u16);
+                gen_terrain_cache(self.params, self.terrain, dir)
+            })
             .collect::<Vec<_>>();
         println!(
             "{}: Generating path cache...",
@@ -35,7 +37,10 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
         );
         let path_cache = (0..self.params.output.height)
             .into_par_iter()
-            .map(|y| gen_path_cache(self.params, self.terrain, y as u16))
+            .map(|y| {
+                let ray_elev = get_ray_elev(self.params, y as u16);
+                gen_path_cache(self.params, self.terrain, ray_elev)
+            })
             .collect::<Vec<_>>();
 
         println!(
@@ -110,64 +115,4 @@ fn get_ray_dir(params: &Params, x: u16) -> f64 {
     let x = (x as i16 - params.output.width as i16 / 2) as f64 / width;
 
     params.view.frame.direction + x * params.view.frame.fov
-}
-
-fn gen_path_cache(params: &Params, terrain: &Terrain, y: u16) -> Vec<PathElem> {
-    let ray_elev = get_ray_elev(params, y);
-    let alt = params.view.position.altitude.abs(
-        terrain,
-        params.view.position.latitude,
-        params.view.position.longitude,
-    );
-    let mut ray = params
-        .env
-        .cast_ray_stepper(alt, ray_elev.to_radians(), params.straight_rays);
-    ray.set_step_size(params.simulation_step);
-
-    let mut path = vec![PathElem {
-        dist: 0.0,
-        elev: alt,
-        path_length: 0.0,
-    }];
-    let mut ray_state = ray.next().unwrap();
-    let mut path_length = 0.0;
-
-    loop {
-        let new_ray_state = ray.next().unwrap();
-        path_length += calc_dist(params, ray_state, new_ray_state);
-        path.push(PathElem {
-            dist: ray_state.x,
-            elev: ray_state.h,
-            path_length,
-        });
-        if ray_state.x > params.view.frame.max_distance || ray_state.h < -1000.0 {
-            break;
-        }
-        ray_state = new_ray_state;
-    }
-
-    path
-}
-
-fn gen_terrain_cache(params: &Params, terrain: &Terrain, x: u16) -> Vec<TerrainData> {
-    let dir = get_ray_dir(params, x);
-    let mut distance = 0.0;
-
-    let mut result = vec![];
-    while distance < params.view.frame.max_distance {
-        distance += params.simulation_step;
-        let (lat, lon) = get_coords_at_dist(
-            &params.env.shape,
-            (
-                params.view.position.latitude,
-                params.view.position.longitude,
-            ),
-            dir,
-            distance,
-        );
-        let terrain_data = TerrainData::from_lat_lon(lat, lon, params, terrain);
-        result.push(terrain_data);
-    }
-
-    result
 }

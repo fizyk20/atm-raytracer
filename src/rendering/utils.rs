@@ -169,6 +169,68 @@ impl TracingState {
     }
 }
 
+pub fn gen_path_cache(params: &Params, terrain: &Terrain, ray_elev: f64) -> Vec<PathElem> {
+    let alt = params.view.position.altitude.abs(
+        terrain,
+        params.view.position.latitude,
+        params.view.position.longitude,
+    );
+    let mut ray = params
+        .env
+        .cast_ray_stepper(alt, ray_elev.to_radians(), params.straight_rays);
+    ray.set_step_size(params.simulation_step);
+
+    let mut path = vec![PathElem {
+        dist: 0.0,
+        elev: alt,
+        path_length: 0.0,
+    }];
+    let mut ray_state = RayState {
+        x: 0.0,
+        h: alt,
+        dh: 0.0,
+    };
+    let mut path_length = 0.0;
+
+    loop {
+        let new_ray_state = ray.next().unwrap();
+        path_length += calc_dist(params, ray_state, new_ray_state);
+        path.push(PathElem {
+            dist: new_ray_state.x,
+            elev: new_ray_state.h,
+            path_length,
+        });
+        if ray_state.x > params.view.frame.max_distance || ray_state.h < -1000.0 {
+            break;
+        }
+        ray_state = new_ray_state;
+    }
+
+    path
+}
+
+pub fn gen_terrain_cache(params: &Params, terrain: &Terrain, dir: f64) -> Vec<TerrainData> {
+    let mut distance = 0.0;
+
+    let mut result = vec![];
+    while distance < params.view.frame.max_distance {
+        let (lat, lon) = get_coords_at_dist(
+            &params.env.shape,
+            (
+                params.view.position.latitude,
+                params.view.position.longitude,
+            ),
+            dir,
+            distance,
+        );
+        let terrain_data = TerrainData::from_lat_lon(lat, lon, params, terrain);
+        result.push(terrain_data);
+        distance += params.simulation_step;
+    }
+
+    result
+}
+
 pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
     mut terrain_and_path: I,
     objects: &[Object],
