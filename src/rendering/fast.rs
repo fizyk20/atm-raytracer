@@ -20,7 +20,7 @@ pub struct FastGenerator<'a, 'b> {
 }
 
 impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
-    fn generate(&self) -> Vec<Vec<Vec<ResultPixel>>> {
+    fn generate(&self) -> Vec<Vec<ResultPixel>> {
         println!(
             "{}: Generating terrain cache...",
             self.start.elapsed().unwrap().as_secs_f64()
@@ -50,7 +50,7 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
                 (0..self.params.output.width)
                     .into_par_iter()
                     .map(|x| {
-                        let pixel = get_single_pixel(
+                        let trace_points = get_single_pixel(
                             terrain_cache[x as usize]
                                 .iter()
                                 .cloned()
@@ -58,6 +58,11 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
                             &self.params.scene.objects,
                             &self.params.env.shape,
                         );
+                        let pixel = ResultPixel {
+                            elevation_angle: get_ray_elev(self.params, y),
+                            azimuth: get_ray_dir(self.params, x),
+                            trace_points,
+                        };
                         let pixels_done = count_pixels.fetch_add(1, Ordering::SeqCst);
                         let prev_percent = pixels_done * 100 / total_pixels;
                         let new_percent = (pixels_done + 1) * 100 / total_pixels;

@@ -1,6 +1,6 @@
 use super::ColoringMethod;
 
-use crate::rendering::{PixelColor, ResultPixel};
+use crate::rendering::{PixelColor, TracePoint};
 
 use image::Rgb;
 use nalgebra::Vector3;
@@ -54,7 +54,7 @@ impl Shading {
 }
 
 impl ColoringMethod for Shading {
-    fn color_for_pixel(&self, pixel: &ResultPixel) -> Rgb<u8> {
+    fn color_for_pixel(&self, pixel: &TracePoint) -> Rgb<u8> {
         let brightness = self.calc_brightness(pixel.normal);
 
         let color = if let PixelColor::Rgba(color) = pixel.color {

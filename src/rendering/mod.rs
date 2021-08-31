@@ -10,8 +10,15 @@ pub use fast::FastGenerator;
 pub use rectilinear::RectilinearGenerator;
 pub use utils::*;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResultPixel {
+    pub elevation_angle: f64,
+    pub azimuth: f64,
+    pub trace_points: Vec<TracePoint>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct TracePoint {
     pub lat: f64,
     pub lon: f64,
     pub distance: f64,
@@ -37,5 +44,5 @@ impl PixelColor {
 }
 
 pub trait Generator {
-    fn generate(&self) -> Vec<Vec<Vec<ResultPixel>>>;
+    fn generate(&self) -> Vec<Vec<ResultPixel>>;
 }

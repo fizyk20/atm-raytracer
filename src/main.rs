@@ -164,7 +164,7 @@ fn blend(rgb1: Rgb<u8>, rgb2: Rgb<u8>, a: f64) -> Rgb<u8> {
     vec3_to_rgb(result)
 }
 
-fn output_image(pixels: &[Vec<Vec<ResultPixel>>], params: &Params) {
+fn output_image(pixels: &[Vec<ResultPixel>], params: &Params) {
     let mut img = ImageBuffer::new(params.output.width as u32, params.output.height as u32);
     let coloring = params.view.coloring.coloring_method();
     for (x, y, px) in img.enumerate_pixels_mut() {
@@ -176,7 +176,7 @@ fn output_image(pixels: &[Vec<Vec<ResultPixel>>], params: &Params) {
         let mut result = def_color;
         let mut curr_alpha = 0.0;
 
-        for pixel in &pixels[y as usize][x as usize] {
+        for pixel in &pixels[y as usize][x as usize].trace_points {
             let color1 = coloring.color_for_pixel(pixel);
             let color2 = if let Some(fog_dist) = params.view.fog_distance {
                 fog(fog_dist, pixel.path_length, color1)
@@ -202,10 +202,10 @@ fn output_image(pixels: &[Vec<Vec<ResultPixel>>], params: &Params) {
 #[derive(Clone, Serialize, Deserialize)]
 struct AllData {
     params: Params,
-    result: Vec<Vec<Vec<ResultPixel>>>,
+    result: Vec<Vec<ResultPixel>>,
 }
 
-fn output_metadata(filename: &str, pixels: Vec<Vec<Vec<ResultPixel>>>, params: Params) {
+fn output_metadata(filename: &str, pixels: Vec<Vec<ResultPixel>>, params: Params) {
     let mut file = fs::File::create(filename).expect("failed to create a metadata file");
     let all_data = AllData {
         params,

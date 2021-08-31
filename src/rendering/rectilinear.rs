@@ -22,7 +22,7 @@ pub struct RectilinearGenerator<'a, 'b> {
 }
 
 impl<'a, 'b> Generator for RectilinearGenerator<'a, 'b> {
-    fn generate(&self) -> Vec<Vec<Vec<ResultPixel>>> {
+    fn generate(&self) -> Vec<Vec<ResultPixel>> {
         println!(
             "{}: Calculating pixels...",
             self.start.elapsed().unwrap().as_secs_f64()
@@ -37,11 +37,17 @@ impl<'a, 'b> Generator for RectilinearGenerator<'a, 'b> {
                     .into_par_iter()
                     .map(|x| {
                         let ray_iterator = self.create_ray_iterator(x, y);
-                        let pixel = get_single_pixel(
+                        let trace_points = get_single_pixel(
                             ray_iterator,
                             &self.params.scene.objects,
                             &self.params.env.shape,
                         );
+                        let ray_params = self.get_ray_params(x, y);
+                        let pixel = ResultPixel {
+                            elevation_angle: ray_params.elevation,
+                            azimuth: ray_params.direction,
+                            trace_points,
+                        };
                         let pixels_done = count_pixels.fetch_add(1, Ordering::SeqCst);
                         let prev_percent = pixels_done * 100 / total_pixels;
                         let new_percent = (pixels_done + 1) * 100 / total_pixels;
@@ -65,6 +71,12 @@ impl<'a, 'b> Generator for RectilinearGenerator<'a, 'b> {
     }
 }
 
+#[derive(Clone, Copy)]
+struct RayParams {
+    elevation: f64,
+    direction: f64,
+}
+
 impl<'a, 'b> RectilinearGenerator<'a, 'b> {
     pub fn new(params: &'a Params, terrain: &'b Terrain, start: SystemTime) -> Self {
         Self {
@@ -74,11 +86,7 @@ impl<'a, 'b> RectilinearGenerator<'a, 'b> {
         }
     }
 
-    fn create_ray_iterator(
-        &self,
-        x: u16,
-        y: u16,
-    ) -> impl Iterator<Item = (TerrainData, PathElem)> + '_ {
+    fn get_ray_params(&self, x: u16, y: u16) -> RayParams {
         let width = self.params.output.width as f64;
 
         let x = (x as i16 - self.params.output.width as i16 / 2) as f64;
@@ -93,9 +101,24 @@ impl<'a, 'b> RectilinearGenerator<'a, 'b> {
         // for Euler angles: [forward, right, up]
         let dir_vec = rot.transform_vector(&Vector3::new(z, x, -y)).normalize();
 
-        let dir = dir_vec.y.atan2(dir_vec.x);
-        let elev = dir_vec.z.asin();
+        let direction = dir_vec.y.atan2(dir_vec.x);
+        let elevation = dir_vec.z.asin();
 
+        RayParams {
+            elevation,
+            direction,
+        }
+    }
+
+    fn create_ray_iterator(
+        &self,
+        x: u16,
+        y: u16,
+    ) -> impl Iterator<Item = (TerrainData, PathElem)> + '_ {
+        let RayParams {
+            elevation: elev,
+            direction: dir,
+        } = self.get_ray_params(x, y);
         let alt = self.params.view.position.altitude.abs(
             self.terrain,
             self.params.view.position.latitude,

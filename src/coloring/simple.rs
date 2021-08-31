@@ -1,6 +1,6 @@
 use super::ColoringMethod;
 
-use crate::rendering::ResultPixel;
+use crate::rendering::TracePoint;
 
 use image::Rgb;
 
@@ -20,7 +20,7 @@ impl SimpleColors {
 }
 
 impl ColoringMethod for SimpleColors {
-    fn color_for_pixel(&self, pixel: &ResultPixel) -> Rgb<u8> {
+    fn color_for_pixel(&self, pixel: &TracePoint) -> Rgb<u8> {
         let dist_ratio = pixel.distance / self.max_distance;
         if pixel.elevation <= self.water_level {
             let mul = 1.0 - dist_ratio * 0.6;

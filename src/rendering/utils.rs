@@ -7,7 +7,7 @@ use crate::{
     object::Object, params::Params, terrain::Terrain, utils::world_directions, utils::Coords,
 };
 
-use super::{PixelColor, ResultPixel};
+use super::{PixelColor, TracePoint};
 
 pub fn find_normal(shape: &EarthShape, lat: f64, lon: f64, terrain: &Terrain) -> Vector3<f64> {
     const DIFF: f64 = 15.0;
@@ -173,7 +173,7 @@ pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
     mut terrain_and_path: I,
     objects: &[Object],
     earth_shape: &EarthShape,
-) -> Vec<ResultPixel> {
+) -> Vec<TracePoint> {
     let (first_terrain, first_path) = terrain_and_path.next().unwrap();
     let mut old_tracing_state = TracingState::new(&first_terrain, first_path.elev, 0.0, 0.0);
     let mut result = vec![];
@@ -194,7 +194,7 @@ pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
             let interpolated = old_tracing_state.interpolate(&new_tracing_state, prop);
             step_result.push((
                 prop,
-                ResultPixel {
+                TracePoint {
                     lat: interpolated.terrain_data.lat,
                     lon: interpolated.terrain_data.lon,
                     distance: interpolated.dist,
@@ -226,7 +226,7 @@ pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
                     let interpolated = old_tracing_state.interpolate(&new_tracing_state, prop);
                     step_result.push((
                         prop,
-                        ResultPixel {
+                        TracePoint {
                             lat: interpolated.terrain_data.lat,
                             lon: interpolated.terrain_data.lon,
                             distance: interpolated.dist,
