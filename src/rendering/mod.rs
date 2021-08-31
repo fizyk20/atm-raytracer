@@ -2,11 +2,9 @@ mod fast;
 mod rectilinear;
 mod utils;
 
-use std::time::SystemTime;
-
 use nalgebra::Vector3;
 
-use crate::{object::Color, params::Params, terrain::Terrain};
+use crate::object::Color;
 
 pub use fast::FastGenerator;
 pub use rectilinear::RectilinearGenerator;
@@ -39,10 +37,5 @@ impl PixelColor {
 }
 
 pub trait Generator {
-    fn generate(
-        &self,
-        params: &Params,
-        terrain: &Terrain,
-        start: SystemTime,
-    ) -> Vec<Vec<Vec<ResultPixel>>>;
+    fn generate(&self) -> Vec<Vec<Vec<ResultPixel>>>;
 }

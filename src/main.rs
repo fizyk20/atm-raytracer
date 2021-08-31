@@ -250,11 +250,11 @@ fn main() {
     let params = config.into_params(&terrain);
 
     let generator: Box<dyn Generator> = match params.output.generator {
-        GeneratorDef::Fast => Box::new(FastGenerator),
-        GeneratorDef::Rectilinear => Box::new(RectilinearGenerator),
+        GeneratorDef::Fast => Box::new(FastGenerator::new(&params, &terrain, start)),
+        GeneratorDef::Rectilinear => Box::new(RectilinearGenerator::new(&params, &terrain, start)),
     };
 
-    let result_pixels = generator.generate(&params, &terrain, start);
+    let result_pixels = generator.generate();
 
     println!(
         "{}: Outputting image...",

@@ -13,42 +13,41 @@ use super::{
 
 use crate::{params::Params, terrain::Terrain};
 
-pub struct FastGenerator;
+pub struct FastGenerator<'a, 'b> {
+    params: &'a Params,
+    terrain: &'b Terrain,
+    start: SystemTime,
+}
 
-impl Generator for FastGenerator {
-    fn generate(
-        &self,
-        params: &Params,
-        terrain: &Terrain,
-        start: SystemTime,
-    ) -> Vec<Vec<Vec<ResultPixel>>> {
+impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
+    fn generate(&self) -> Vec<Vec<Vec<ResultPixel>>> {
         println!(
             "{}: Generating terrain cache...",
-            start.elapsed().unwrap().as_secs_f64()
+            self.start.elapsed().unwrap().as_secs_f64()
         );
-        let terrain_cache = (0..params.output.width)
+        let terrain_cache = (0..self.params.output.width)
             .into_par_iter()
-            .map(|x| gen_terrain_cache(&params, &terrain, x as u16))
+            .map(|x| gen_terrain_cache(self.params, self.terrain, x as u16))
             .collect::<Vec<_>>();
         println!(
             "{}: Generating path cache...",
-            start.elapsed().unwrap().as_secs_f64()
+            self.start.elapsed().unwrap().as_secs_f64()
         );
-        let path_cache = (0..params.output.height)
+        let path_cache = (0..self.params.output.height)
             .into_par_iter()
-            .map(|y| gen_path_cache(&params, &terrain, y as u16))
+            .map(|y| gen_path_cache(self.params, self.terrain, y as u16))
             .collect::<Vec<_>>();
 
         println!(
             "{}: Calculating pixels...",
-            start.elapsed().unwrap().as_secs_f64()
+            self.start.elapsed().unwrap().as_secs_f64()
         );
         let count_pixels = AtomicUsize::new(0);
-        let total_pixels = params.output.width as usize * params.output.height as usize;
-        let result = (0..params.output.height)
+        let total_pixels = self.params.output.width as usize * self.params.output.height as usize;
+        let result = (0..self.params.output.height)
             .into_par_iter()
             .map(|y| {
-                (0..params.output.width)
+                (0..self.params.output.width)
                     .into_par_iter()
                     .map(|x| {
                         let pixel = get_single_pixel(
@@ -56,8 +55,8 @@ impl Generator for FastGenerator {
                                 .iter()
                                 .cloned()
                                 .zip(path_cache[y as usize].iter().copied()),
-                            &params.scene.objects,
-                            &params.env.shape,
+                            &self.params.scene.objects,
+                            &self.params.env.shape,
                         );
                         let pixels_done = count_pixels.fetch_add(1, Ordering::SeqCst);
                         let prev_percent = pixels_done * 100 / total_pixels;
@@ -65,7 +64,7 @@ impl Generator for FastGenerator {
                         if new_percent > prev_percent {
                             println!(
                                 "{}: {}%...",
-                                start.elapsed().unwrap().as_secs_f64(),
+                                self.start.elapsed().unwrap().as_secs_f64(),
                                 new_percent,
                             );
                         }
@@ -76,9 +75,19 @@ impl Generator for FastGenerator {
             .collect::<Vec<_>>();
         println!(
             "{}: Done calculating",
-            start.elapsed().unwrap().as_secs_f64()
+            self.start.elapsed().unwrap().as_secs_f64()
         );
         result
+    }
+}
+
+impl<'a, 'b> FastGenerator<'a, 'b> {
+    pub fn new(params: &'a Params, terrain: &'b Terrain, start: SystemTime) -> Self {
+        Self {
+            params,
+            terrain,
+            start,
+        }
     }
 }
 
