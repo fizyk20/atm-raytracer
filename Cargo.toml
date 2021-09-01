@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 atm-refraction = "0.4"
-dted = "0.1"
+dted = "0.2"
 clap = "2.0"
 image = "0.22"
 imageproc = "0.19"
