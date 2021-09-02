@@ -1,7 +1,7 @@
 mod coloring;
+mod generators;
 mod object;
 mod params;
-mod rendering;
 mod terrain;
 mod utils;
 
@@ -16,8 +16,8 @@ use std::{
 };
 
 use crate::{
+    generators::{FastGenerator, Generator, RectilinearGenerator, ResultPixel},
     params::{GeneratorDef, Params, Tick},
-    rendering::{FastGenerator, Generator, RectilinearGenerator, ResultPixel},
     terrain::Terrain,
     utils::{rgb_to_vec3, vec3_to_rgb},
 };

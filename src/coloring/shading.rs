@@ -1,6 +1,6 @@
 use super::ColoringMethod;
 
-use crate::rendering::{PixelColor, TracePoint};
+use crate::generators::{PixelColor, TracePoint};
 
 use image::Rgb;
 use nalgebra::Vector3;
