@@ -14,20 +14,29 @@ simulate a view of a specific location, compare it to actual photos and see whic
 ### Metadata
 
 In version 0.4, a way of saving metadata was introduced. The metadata consists of the geographical
-coordinates, elevation and distance of each pixel. This data can then be read by a separate program,
-the [panorama reader](https://github.com/fizyk20/panorama-reader), which enables checking each
-pixel's data.
+coordinates, elevation and distance of each pixel. This data can then be read and displayed by
+running `atm-raytracer` with the `view` subcommand (introduced in 0.7). Using this mode, you can
+check each individual pixel's information, like the geographical coordinates, distance, and viewing
+direction.
 
 To output the metadata, use the `--output-meta` command line option, or the `file_metadata` config
 file entry.
 
 ## Usage
 
+Since version 0.7, the application contains of two subcommands:
+
+- `gen`, used for generating the images and/or metadata files
+- `view`, used for viewing metadata files and inspecting pixel information.
+
+### The `gen` subcommand
+
 Typical usage would be:
 
 1. Download some DTED elevation map files, for example from https://earthexplorer.usgs.gov/
 2. Put the DTED files in a single folder
-3. Run `cargo run --release -- PARAMETERS`, where the possible parameters are:
+3. Run `cargo run --release -- gen PARAMETERS` (or, if already compiled, `atm-raytracer gen
+PARAMETERS`, where the possible parameters are:
 
 * `-c, --config PATH` - path to a YAML config file, defining any of the values described below.
 
@@ -224,6 +233,12 @@ output:
           labelled: true
     # whether to show a line representing the eye level (the horizontal direction)
     show_eye_level: true
+    # the generating algorithm to be used - there are two options:
+    # - Fast - faster, but introducing distortions in the picture (negligible with small fields of
+    # view near horizontal
+    # - Rectilinear - simulating a view through a rectilinear lens, but up to a few times slower
+    # the default is Fast
+    generator: Fast
 
 # atmosphere structure definition
 # if this isn't present, a US-76 atmosphere is assumed
@@ -269,3 +284,20 @@ atmosphere:
     #     altitude: 0.0
     #     temperature: 288.0
 ```
+
+### The `view` subcommand
+
+This subcommand only takes a single parameter, the path to the metadata file, so the typical usage will be:
+
+`cargo run --release -- view metadata.dat`
+
+or
+
+`atm-raytracer view metadata.dat`
+
+(`metadata.dat` being an example name of the metadata file.)
+
+This launches a GUI application which displays the generated image. Initially no pixel information is
+being displayed, because no pixel is selected. To select a pixel, hit the spacebar while hovering over
+it with the mouse. Esc deselects the pixel. You can pan the view by dragging it with the mouse, and
+zoom in and out using the scroll wheel.
