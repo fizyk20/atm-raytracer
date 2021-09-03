@@ -89,9 +89,15 @@ impl Cache {
                 &params.scene.objects,
                 &params.env.shape,
             );
+            let mut azimuth = (point.dir_index as f64 * self.min_dir_step).to_degrees();
+            if azimuth < 0.0 {
+                azimuth += 360.0;
+            } else if azimuth >= 360.0 {
+                azimuth -= 360.0;
+            }
             let result = ResultPixel {
                 elevation_angle: (point.elev_index as f64 * self.min_elev_step).to_degrees(),
-                azimuth: (point.dir_index as f64 * self.min_dir_step).to_degrees(),
+                azimuth,
                 trace_points,
             };
             self.pixels.write().unwrap().insert(point, result.clone());

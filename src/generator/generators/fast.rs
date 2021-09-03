@@ -63,9 +63,15 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
                             &self.params.scene.objects,
                             &self.params.env.shape,
                         );
+                        let mut azimuth = get_ray_dir(self.params, x);
+                        if azimuth < 0.0 {
+                            azimuth += 360.0;
+                        } else if azimuth >= 360.0 {
+                            azimuth -= 360.0
+                        };
                         let pixel = ResultPixel {
                             elevation_angle: get_ray_elev(self.params, y),
-                            azimuth: get_ray_dir(self.params, x),
+                            azimuth,
                             trace_points,
                         };
                         let pixels_done = count_pixels.fetch_add(1, Ordering::SeqCst);

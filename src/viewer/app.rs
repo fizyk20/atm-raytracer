@@ -13,7 +13,7 @@ use fltk::{
 
 use crate::{generator::AllData, renderer};
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct ViewState {
     mouse_x: i32,
     mouse_y: i32,
@@ -24,13 +24,25 @@ struct ViewState {
     orig_w: i32,
     orig_h: i32,
     image: RgbImage,
+    data: AllData,
 }
 
 const CURSOR_SIZE: i32 = 20;
 const CURSOR_RADIUS: i32 = 10;
 
+const INFO_TITLE: &'static str = "Info about the clicked pixel:";
+const INFO_NONE: &'static str = "<none>";
+
+fn as_dms(ang: f64) -> (usize, usize, usize) {
+    let ang = ang.abs();
+    let deg = ang as usize;
+    let min = ((ang - deg as f64) * 60.0) as usize;
+    let sec = ((ang - deg as f64 - min as f64 / 60.0) * 3600.0) as usize;
+    (deg, min, sec)
+}
+
 impl ViewState {
-    fn new(image: RgbImage) -> ViewState {
+    fn new(image: RgbImage, data: AllData) -> ViewState {
         ViewState {
             mouse_x: 0,
             mouse_y: 0,
@@ -41,6 +53,7 @@ impl ViewState {
             orig_w: image.width(),
             orig_h: image.height(),
             image,
+            data,
         }
     }
 
@@ -71,6 +84,62 @@ impl ViewState {
         }
 
         offs.end();
+    }
+
+    fn set_label(&self, frame: &mut Frame) {
+        let label = if let Some((cx, cy)) = self.cursor {
+            if cx < 0
+                || cx > self.data.params.output.width as i32
+                || cy < 0
+                || cy > self.data.params.output.height as i32
+            {
+                format!("{} {}", INFO_TITLE, INFO_NONE)
+            } else {
+                let x = cx as usize;
+                let y = cy as usize;
+                let pixel = &self.data.result[y][x];
+                let elev_ang = pixel.elevation_angle;
+                let azim = pixel.azimuth;
+                let rest = if let Some(tp) = pixel.trace_points.first() {
+                    let lon = as_dms(tp.lon);
+                    let lat = as_dms(tp.lat);
+                    format!(
+                        "Physical data:\n\
+                        Distance: {:.1} km ({:.1} mi)\n\
+                        Elevation: {:.1} m ({:.0} ft)\n\
+                        Latitude: {}°{}'{}\"{} ({:.6})\n\
+                        Longitude: {}°{}'{}\"{} ({:.6})",
+                        tp.distance / 1000.0,
+                        tp.distance / 1609.0,
+                        tp.elevation,
+                        tp.elevation / 0.304,
+                        lat.0,
+                        lat.1,
+                        lat.2,
+                        if tp.lat >= 0.0 { "N" } else { "S" },
+                        tp.lat,
+                        lon.0,
+                        lon.1,
+                        lon.2,
+                        if tp.lon >= 0.0 { "E" } else { "W" },
+                        tp.lon
+                    )
+                } else {
+                    format!("Physical data: {}", INFO_NONE)
+                };
+                format!(
+                    "{}\n\n\
+                    Viewing direction:\n\
+                    Elevation: {:.3}°\n\
+                    Azimuth: {:.3}°\n\n\
+                    {}",
+                    INFO_TITLE, elev_ang, azim, rest
+                )
+            }
+        } else {
+            format!("{} {}", INFO_TITLE, INFO_NONE)
+        };
+        frame.set_label(&label);
     }
 
     fn img_size(&self) -> (i32, i32) {
@@ -119,7 +188,6 @@ impl ViewState {
             ((x - self.pan_x - self.orig_w / 2 - 5) as f64 / self.scale) as i32 + self.orig_w / 2;
         let y =
             ((y - self.pan_y - self.orig_h / 2 - 5) as f64 / self.scale) as i32 + self.orig_h / 2;
-        println!("Cursor set! {}, {}", x, y);
         self.cursor = Some((x, y));
     }
 }
@@ -142,11 +210,11 @@ pub fn run(data: AllData) -> Result<(), String> {
     pack.set_spacing(10);
     pack.set_type(PackType::Horizontal);
 
-    let mut frame = Frame::default().with_size(1000, 800);
+    let mut frame = Frame::default().with_size(950, 800);
 
-    let label = Frame::default()
-        .with_size(200, 0)
-        .with_label("Test\nTest2\nTest3")
+    let mut label = Frame::default()
+        .with_size(310, 0)
+        .with_label(&format!("{} {}", INFO_TITLE, INFO_NONE))
         .with_align(Align::Inside | Align::Left | Align::Top);
 
     pack.end();
@@ -166,7 +234,7 @@ pub fn run(data: AllData) -> Result<(), String> {
     let fw = frame.w();
     let fh = frame.h();
 
-    let state = Rc::new(RefCell::new(ViewState::new(image)));
+    let state = Rc::new(RefCell::new(ViewState::new(image, data)));
 
     let offs = Rc::new(RefCell::new(Offscreen::new(fw, fh).unwrap()));
     state.borrow_mut().draw(&mut *offs.borrow_mut());
@@ -220,10 +288,10 @@ pub fn run(data: AllData) -> Result<(), String> {
     wind.handle(move |_, ev| match ev {
         Event::KeyDown => match app::event_key() {
             Key::Escape => {
-                println!("Cursor cleared!");
                 state.borrow_mut().clear_cursor();
                 state.borrow_mut().draw(&mut *offs.borrow_mut());
                 frame.redraw();
+                state.borrow().set_label(&mut label);
                 true
             }
             _ => {
@@ -233,6 +301,7 @@ pub fn run(data: AllData) -> Result<(), String> {
                     state.borrow_mut().set_cursor(coords.0, coords.1);
                     state.borrow_mut().draw(&mut *offs.borrow_mut());
                     frame.redraw();
+                    state.borrow().set_label(&mut label);
                     true
                 } else {
                     false
