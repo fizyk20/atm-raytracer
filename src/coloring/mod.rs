@@ -1,7 +1,7 @@
 mod shading;
 mod simple;
 
-use crate::generators::TracePoint;
+use crate::generator::TracePoint;
 
 use image::Rgb;
 

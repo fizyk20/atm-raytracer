@@ -1,6 +1,6 @@
 use super::ColoringMethod;
 
-use crate::generators::TracePoint;
+use crate::generator::TracePoint;
 
 use image::Rgb;
 

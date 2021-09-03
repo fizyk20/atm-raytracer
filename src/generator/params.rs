@@ -11,7 +11,7 @@ use atm_refraction::{
     air::{Atmosphere, AtmosphereDef},
     EarthShape, Environment,
 };
-use clap::{App, AppSettings, Arg};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use nalgebra::Vector3;
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -405,9 +405,8 @@ impl Config {
     }
 }
 
-pub fn parse_config() -> Result<Config, ()> {
-    let matches = App::new("Atmospheric Panorama Raytracer")
-        .version("0.4")
+pub fn subcommand_def() -> App<'static, 'static> {
+    SubCommand::with_name(super::SUBCOMMAND).about("Render a panorama")
         .setting(AppSettings::AllowLeadingHyphen)
         .arg(
             Arg::with_name("terrain")
@@ -558,8 +557,9 @@ pub fn parse_config() -> Result<Config, ()> {
                     temperature to a file.")
                 .takes_value(false),
         )
-        .get_matches();
+}
 
+pub fn parse_config(matches: &ArgMatches<'_>) -> Result<Config, ()> {
     let mut config = if let Some(config_path) = matches.value_of("config") {
         let mut config_abs_path = env::current_dir().unwrap();
         config_abs_path.push(&config_path);

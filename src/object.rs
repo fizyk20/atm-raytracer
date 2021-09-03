@@ -1,7 +1,7 @@
 use std::env;
 
 use crate::{
-    params::Position,
+    generator::params::Position,
     terrain::Terrain,
     utils::{rgba_to_vec4, spherical_to_cartesian, vec4_to_rgba, Coords},
 };

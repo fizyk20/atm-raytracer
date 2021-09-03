@@ -15,7 +15,7 @@ use super::{
     Generator, ResultPixel, TracePoint,
 };
 
-use crate::{params::Params, terrain::Terrain};
+use crate::{generator::params::Params, terrain::Terrain};
 
 pub struct RectilinearGenerator<'a, 'b> {
     params: &'a Params,

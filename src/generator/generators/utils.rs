@@ -4,7 +4,10 @@ use atm_refraction::{EarthShape, RayState};
 use nalgebra::Vector3;
 
 use crate::{
-    object::Object, params::Params, terrain::Terrain, utils::world_directions, utils::Coords,
+    generator::params::Params,
+    object::Object,
+    terrain::Terrain,
+    utils::{world_directions, Coords},
 };
 
 use super::{PixelColor, TracePoint};

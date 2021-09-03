@@ -10,7 +10,7 @@ use super::{
     Generator, ResultPixel,
 };
 
-use crate::{params::Params, terrain::Terrain};
+use crate::{generator::params::Params, terrain::Terrain};
 
 pub struct FastGenerator<'a, 'b> {
     params: &'a Params,
