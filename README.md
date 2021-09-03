@@ -301,3 +301,7 @@ This launches a GUI application which displays the generated image. Initially no
 being displayed, because no pixel is selected. To select a pixel, hit the spacebar while hovering over
 it with the mouse. Esc deselects the pixel. You can pan the view by dragging it with the mouse, and
 zoom in and out using the scroll wheel.
+
+Screenshot:
+
+![atm-raytracer view screenshot](viewer-screenshot.jpg)
