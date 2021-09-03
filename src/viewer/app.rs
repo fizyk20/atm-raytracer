@@ -30,7 +30,7 @@ struct ViewState {
 const CURSOR_SIZE: i32 = 20;
 const CURSOR_RADIUS: i32 = 10;
 
-const INFO_TITLE: &'static str = "Info about the clicked pixel:";
+const INFO_TITLE: &'static str = "Info about the selected pixel:";
 const INFO_NONE: &'static str = "<none>";
 
 fn as_dms(ang: f64) -> (usize, usize, usize) {
@@ -129,11 +129,12 @@ impl ViewState {
                 };
                 format!(
                     "{}\n\n\
+                    Pixel coordinates: ({}, {})\n\n\
                     Viewing direction:\n\
                     Elevation: {:.3}°\n\
                     Azimuth: {:.3}°\n\n\
                     {}",
-                    INFO_TITLE, elev_ang, azim, rest
+                    INFO_TITLE, x, y, elev_ang, azim, rest
                 )
             }
         } else {
