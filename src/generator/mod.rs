@@ -18,8 +18,8 @@ pub const SUBCOMMAND: &'static str = "gen";
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AllData {
-    params: Params,
-    result: Vec<Vec<ResultPixel>>,
+    pub params: Params,
+    pub result: Vec<Vec<ResultPixel>>,
 }
 
 fn output_metadata(filename: &str, pixels: Vec<Vec<ResultPixel>>, params: Params) {

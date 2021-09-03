@@ -6,18 +6,19 @@ edition = "2018"
 
 [dependencies]
 atm-refraction = "0.4"
-dted = "0.2"
+bincode = "1.2"
 clap = "2.0"
+dted = "0.2"
+fltk = "1.1"
 image = "0.22"
 imageproc = "0.19"
+libflate = "0.1"
+nalgebra = "0.22"
 rayon = "1.0"
 rusttype = "0.8"
 serde = "1.0"
 serde_derive = "1.0"
 serde_yaml = "0.8"
-bincode = "1.2"
-libflate = "0.1"
-nalgebra = "0.22"
 
 [features]
 default = ["atm-refraction/serialization", "nalgebra/serde-serialize"]
