@@ -288,6 +288,9 @@ pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
                     old_tracing_state.ray_coords(),
                     new_tracing_state.ray_coords(),
                 ) {
+                    if color.a == 0.0 {
+                        continue;
+                    }
                     let interpolated = old_tracing_state.interpolate(&new_tracing_state, prop);
                     step_result.push((
                         prop,
