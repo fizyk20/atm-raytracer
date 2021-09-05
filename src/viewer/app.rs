@@ -17,12 +17,14 @@ use crate::{generator::AllData, renderer};
 struct ViewState {
     mouse_x: i32,
     mouse_y: i32,
-    pan_x: i32,
-    pan_y: i32,
+    pan_x: f64,
+    pan_y: f64,
     scale: f64,
     cursor: Option<(i32, i32)>,
-    orig_w: i32,
-    orig_h: i32,
+    orig_w: f64,
+    orig_h: f64,
+    frame_w: i32,
+    frame_h: i32,
     image: RgbImage,
     data: AllData,
 }
@@ -42,35 +44,56 @@ fn as_dms(ang: f64) -> (usize, usize, usize) {
 }
 
 impl ViewState {
-    fn new(image: RgbImage, data: AllData) -> ViewState {
+    fn new(image: RgbImage, data: AllData, frame_w: i32, frame_h: i32) -> ViewState {
         ViewState {
             mouse_x: 0,
             mouse_y: 0,
-            pan_x: 0,
-            pan_y: 0,
+            pan_x: 0.0,
+            pan_y: 0.0,
             scale: 1.0,
             cursor: None,
-            orig_w: image.width(),
-            orig_h: image.height(),
+            orig_w: image.width() as f64,
+            orig_h: image.height() as f64,
+            frame_w,
+            frame_h,
             image,
             data,
         }
     }
 
+    fn image_to_frame(&self, x: f64, y: f64) -> (f64, f64) {
+        (
+            (x - self.orig_w / 2.0) * self.scale + self.orig_w / 2.0 + self.pan_x,
+            (y - self.orig_h / 2.0) * self.scale + self.orig_h / 2.0 + self.pan_y,
+        )
+    }
+
+    fn frame_to_image(&self, x: f64, y: f64) -> (f64, f64) {
+        (
+            (x - self.pan_x - self.orig_w / 2.0) / self.scale + self.orig_w / 2.0,
+            (y - self.pan_y - self.orig_h / 2.0) / self.scale + self.orig_h / 2.0,
+        )
+    }
+
+    fn img_size(&self) -> (i32, i32) {
+        let width = (self.orig_w * self.scale) as i32;
+        let height = (self.orig_h * self.scale) as i32;
+        (width, height)
+    }
+
     fn draw(&mut self, offs: &mut Offscreen) {
         offs.begin();
         set_draw_color(Color::White);
-        draw_rectf(0, 0, self.orig_w, self.orig_h);
+        draw_rectf(0, 0, self.frame_w, self.frame_h);
 
         let (width, height) = self.img_size();
-        let (tx, ty) = self.translation();
+        let (tx, ty) = self.image_to_frame(0.0, 0.0);
         self.image.scale(width, height, true, true);
-        self.image.draw(tx, ty, width, height);
+        self.image.draw(tx as i32, ty as i32, width, height);
 
         if let Some((cx, cy)) = self.cursor {
-            let (ow, oh) = (self.orig_w as f64 + 1.0, self.orig_h as f64 + 1.0);
-            let x = ((cx as f64 - ow / 2.0) * self.scale + ow / 2.0) as i32 + self.pan_x;
-            let y = ((cy as f64 - oh / 2.0) * self.scale + oh / 2.0) as i32 + self.pan_y;
+            let (x, y) = self.image_to_frame(cx as f64 + 0.5, cy as f64 + 0.5);
+            let (x, y) = (x as i32, y as i32);
             draw_line(x - CURSOR_SIZE, y, x + CURSOR_SIZE, y);
             draw_line(x, y - CURSOR_SIZE, x, y + CURSOR_SIZE);
             draw_arc(
@@ -89,9 +112,9 @@ impl ViewState {
     fn set_label(&self, frame: &mut Frame) {
         let label = if let Some((cx, cy)) = self.cursor {
             if cx < 0
-                || cx > self.data.params.output.width as i32
+                || cx >= self.data.params.output.width as i32
                 || cy < 0
-                || cy > self.data.params.output.height as i32
+                || cy >= self.data.params.output.height as i32
             {
                 format!("{} {}", INFO_TITLE, INFO_NONE)
             } else {
@@ -143,19 +166,6 @@ impl ViewState {
         frame.set_label(&label);
     }
 
-    fn img_size(&self) -> (i32, i32) {
-        let width = ((self.orig_w as f64) * self.scale) as i32;
-        let height = ((self.orig_h as f64) * self.scale) as i32;
-        (width, height)
-    }
-
-    fn translation(&self) -> (i32, i32) {
-        let (width, height) = self.img_size();
-        let tx = self.pan_x + self.orig_w / 2 - width / 2;
-        let ty = self.pan_y + self.orig_h / 2 - height / 2;
-        (tx, ty)
-    }
-
     fn mouse_pos(&self) -> (i32, i32) {
         (self.mouse_x, self.mouse_y)
     }
@@ -166,18 +176,18 @@ impl ViewState {
     }
 
     fn pan(&mut self, x: i32, y: i32) {
-        self.pan_x += x;
-        self.pan_y += y;
+        self.pan_x += x as f64;
+        self.pan_y += y as f64;
     }
 
     fn scale(&mut self, scale: f64) {
         let (x0, y0) = (500.0, 400.0);
-        let (ow, oh) = (self.orig_w as f64 + 1.0, self.orig_h as f64 + 1.0);
-        let x_inv = (x0 - ow / 2.0 - self.pan_x as f64) / self.scale + ow / 2.0;
-        let y_inv = (y0 - oh / 2.0 - self.pan_y as f64) / self.scale + oh / 2.0;
+        let (x_inv, y_inv) = self.frame_to_image(x0, y0);
         self.scale *= scale;
-        self.pan_x = (x0 - ow / 2.0 - (x_inv - ow / 2.0) * self.scale) as i32;
-        self.pan_y = (y0 - oh / 2.0 - (y_inv - oh / 2.0) * self.scale) as i32;
+        let (x1, y1) = self.image_to_frame(x_inv, y_inv);
+        self.pan_x += x0 - x1;
+        self.pan_y += y0 - y1;
+        println!("{}, {}", self.pan_x, self.pan_y);
     }
 
     fn clear_cursor(&mut self) {
@@ -185,11 +195,8 @@ impl ViewState {
     }
 
     fn set_cursor(&mut self, x: i32, y: i32) {
-        let x =
-            ((x - self.pan_x - self.orig_w / 2 - 5) as f64 / self.scale) as i32 + self.orig_w / 2;
-        let y =
-            ((y - self.pan_y - self.orig_h / 2 - 5) as f64 / self.scale) as i32 + self.orig_h / 2;
-        self.cursor = Some((x, y));
+        let (cx, cy) = self.frame_to_image(x as f64, y as f64);
+        self.cursor = Some(((cx - 0.5) as i32, (cy - 0.5) as i32));
     }
 }
 
@@ -211,7 +218,10 @@ pub fn run(data: AllData) -> Result<(), String> {
     pack.set_spacing(10);
     pack.set_type(PackType::Horizontal);
 
-    let mut frame = Frame::default().with_size(950, 800);
+    let fw = 950;
+    let fh = 800;
+
+    let mut frame = Frame::default().with_size(fw, fh);
 
     let mut label = Frame::default()
         .with_size(310, 0)
@@ -232,10 +242,7 @@ pub fn run(data: AllData) -> Result<(), String> {
     )
     .unwrap();
 
-    let fw = frame.w();
-    let fh = frame.h();
-
-    let state = Rc::new(RefCell::new(ViewState::new(image, data)));
+    let state = Rc::new(RefCell::new(ViewState::new(image, data, fw, fh)));
 
     let offs = Rc::new(RefCell::new(Offscreen::new(fw, fh).unwrap()));
     state.borrow_mut().draw(&mut *offs.borrow_mut());
