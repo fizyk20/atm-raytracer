@@ -1,4 +1,6 @@
-use dted::{read_dted, read_dted_header, DtedData};
+mod tile;
+
+use dted::{read_dted, read_dted_header};
 use std::{
     collections::HashMap,
     fs,
@@ -6,8 +8,12 @@ use std::{
     sync::RwLock,
 };
 
+use tile::Tile;
+
+type TileObj = Box<dyn Tile + Send + Sync>;
+
 enum TerrainData {
-    Loaded(DtedData),
+    Loaded(TileObj),
     Pending(PathBuf),
 }
 
@@ -19,7 +25,7 @@ impl TerrainData {
                 println!("Lazy loading terrain file: {:?}", path);
                 let data = read_dted(path).expect("Couldn't read a DTED file");
                 let result = data.get_elev(latitude, longitude);
-                *self = TerrainData::Loaded(data);
+                *self = TerrainData::Loaded(Box::new(data));
                 result
             }
         }
