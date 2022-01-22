@@ -246,7 +246,7 @@ atmosphere:
     # Pressure fixed point (a value at a given altitude):
     pressure:
         altitude: 0.0
-        # pressure in hPa
+        # pressure in Pa (pascals)
         pressure: 101325
     # a definition of the temperature function that will be used for altitudes from -infinity up to
     # the first altitude defined in next_functions
