@@ -499,13 +499,13 @@ pub fn subcommand_def() -> App<'static, 'static> {
                 .short("R")
                 .long("radius")
                 .value_name("RADIUS")
-                .help("Calculate assuming the given value as the Earth's radius, in km (default: 6378) (conflicts with --flat)")
+                .help("Calculate assuming the given value as the Earth's radius, in km (default: 6371) (conflicts with --flat)")
                 .takes_value(true),
         )
         .arg(
             Arg::with_name("flat")
                 .long("flat")
-                .help("Simulate a flat Earth (conflicts with --radius)")
+                .help("Simulate a flat Earth using the FlatDistorted model (light paths like on a flat Earth, but with distances distorted for southern hemisphere to yield reasonable results) (conflicts with --radius)")
                 .takes_value(false),
         )
         .arg(

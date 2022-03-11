@@ -58,7 +58,7 @@ View options:
 Simulation environment options:
 
 * `-R, --radius RADIUS` - the Earth's simulated radius, conflicts with `--flat`
-* `--flat` - simulate a flat Earth; conflicts with `--radius`
+* `--flat` - use the `FlatDistorted` model (calculating light paths like on a flat surface with slightly distorted distances); conflicts with `--radius`
 * `-s, --straight` - propagate light rays along straight lines (by default the rays are bent according to the atmospheric temperature and pressure)
 * `--step STEP` - when simulating a light ray, a single simulation step will be by this many meters
 
@@ -173,14 +173,21 @@ view:
 
 # the shape of the simulated Earth
 # can be either of:
-# earth_shape: Flat
-# or
-# earth_shape:
-#   Spherical:
-#     radius: x (in meters)
+# * earth_shape: AzimuthalEquidistant
+#   (calculates everything according to the AE model)
+# * earth_shape: FlatDistorted
+#   (calculates light paths like on a flat surface, but distorts distances according to latitude)
+# * earth_shape:
+#     FlatSpherical:
+#       radius: x (in meters)
+#   (calculates light paths like on a flat surface, but distances like on the spherical model)
+# * earth_shape:
+#     Spherical:
+#       radius: x (in meters)
+#   (calculates everything like on a globe)
 earth_shape:
     Spherical:
-        radius: 6378000
+        radius: 6371000
 
 # straight_rays: if true, rays are just propagated along straight lines.
 # if false, actual light propagation equations are used
@@ -233,11 +240,12 @@ output:
           labelled: true
     # whether to show a line representing the eye level (the horizontal direction)
     show_eye_level: true
-    # the generating algorithm to be used - there are two options:
+    # The generating algorithm to be used - there are three options:
     # - Fast - faster, but introducing distortions in the picture (negligible with small fields of
     # view near horizontal
     # - Rectilinear - simulating a view through a rectilinear lens, but up to a few times slower
-    # the default is Fast
+    # - InterpolatingRectilinear - a faster, but slightly less accurate version of Rectilinear
+    # The default is Fast.
     generator: Fast
 
 # atmosphere structure definition
