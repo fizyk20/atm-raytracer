@@ -187,7 +187,6 @@ impl ViewState {
         let (x1, y1) = self.image_to_frame(x_inv, y_inv);
         self.pan_x += x0 - x1;
         self.pan_y += y0 - y1;
-        println!("{}, {}", self.pan_x, self.pan_y);
     }
 
     fn clear_cursor(&mut self) {
