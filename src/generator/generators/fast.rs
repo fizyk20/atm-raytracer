@@ -21,7 +21,7 @@ pub struct FastGenerator<'a, 'b> {
 impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
     fn generate(&self) -> Vec<Vec<ResultPixel>> {
         println!(
-            "{}: Generating terrain cache...",
+            "{:.3}: Generating terrain cache...",
             self.start.elapsed().unwrap().as_secs_f64()
         );
         let terrain_cache = (0..self.params.output.width)
@@ -32,7 +32,7 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
             })
             .collect::<Vec<_>>();
         println!(
-            "{}: Generating path cache...",
+            "{:.3}: Generating path cache...",
             self.start.elapsed().unwrap().as_secs_f64()
         );
         let path_cache = (0..self.params.output.height)
@@ -44,7 +44,7 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
             .collect::<Vec<_>>();
 
         println!(
-            "{}: Calculating pixels...",
+            "{:.3}: Calculating pixels...",
             self.start.elapsed().unwrap().as_secs_f64()
         );
         let count_pixels = AtomicUsize::new(0);
@@ -79,7 +79,7 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
                         let new_percent = (pixels_done + 1) * 100 / total_pixels;
                         if new_percent > prev_percent {
                             println!(
-                                "{}: {}%...",
+                                "{:.3}: {}%...",
                                 self.start.elapsed().unwrap().as_secs_f64(),
                                 new_percent,
                             );
@@ -90,7 +90,7 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
             })
             .collect::<Vec<_>>();
         println!(
-            "{}: Done calculating",
+            "{:.3}: Done calculating",
             self.start.elapsed().unwrap().as_secs_f64()
         );
         result

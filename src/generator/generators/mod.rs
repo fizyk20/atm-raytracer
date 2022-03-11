@@ -1,4 +1,5 @@
 mod fast;
+mod interpolating_rectilinear;
 mod rectilinear;
 mod utils;
 
@@ -7,6 +8,7 @@ use nalgebra::Vector3;
 use crate::object::Color;
 
 pub use fast::FastGenerator;
+pub use interpolating_rectilinear::InterpolatingRectilinearGenerator;
 pub use rectilinear::RectilinearGenerator;
 pub use utils::*;
 

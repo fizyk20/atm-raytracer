@@ -9,7 +9,8 @@ use libflate::gzip::Encoder;
 use crate::terrain::Terrain;
 
 pub use generators::{
-    FastGenerator, Generator, PixelColor, RectilinearGenerator, ResultPixel, TracePoint,
+    FastGenerator, Generator, InterpolatingRectilinearGenerator, PixelColor, RectilinearGenerator,
+    ResultPixel, TracePoint,
 };
 pub use params::subcommand_def;
 use params::{GeneratorDef, Params};
@@ -59,7 +60,7 @@ pub fn generate(matches: &ArgMatches<'_>) -> Result<(), String> {
     let start = SystemTime::now();
 
     println!(
-        "{}: Using terrain data directory: {:?}",
+        "{:.3}: Using terrain data directory: {:?}",
         start.elapsed().unwrap().as_secs_f64(),
         terrain_folder
     );
@@ -70,24 +71,29 @@ pub fn generate(matches: &ArgMatches<'_>) -> Result<(), String> {
 
     let generator: Box<dyn Generator> = match params.output.generator {
         GeneratorDef::Fast => Box::new(FastGenerator::new(&params, &terrain, start)),
+        GeneratorDef::InterpolatingRectilinear => Box::new(InterpolatingRectilinearGenerator::new(
+            &params, &terrain, start,
+        )),
         GeneratorDef::Rectilinear => Box::new(RectilinearGenerator::new(&params, &terrain, start)),
     };
 
     let result_pixels = generator.generate();
 
     println!(
-        "{}: Outputting image...",
+        "{:.3}: Outputting image...",
         start.elapsed().unwrap().as_secs_f64()
     );
     crate::renderer::output_image(&result_pixels, &params);
 
     if let Some(ref filename) = params.output.file_metadata {
         println!(
-            "{}: Outputting metadata...",
+            "{:.3}: Outputting metadata...",
             start.elapsed().unwrap().as_secs_f64()
         );
         output_metadata(filename, result_pixels, params.clone());
     }
+
+    println!("{:.3}: Done.", start.elapsed().unwrap().as_secs_f64());
 
     Ok(())
 }
