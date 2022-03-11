@@ -7,20 +7,20 @@ use crate::{
     generator::params::Params,
     object::Object,
     terrain::Terrain,
-    utils::{world_directions, Coords},
+    utils::{Coords, EarthModel},
 };
 
 use super::{PixelColor, TracePoint};
 
-pub fn find_normal(shape: &EarthShape, lat: f64, lon: f64, terrain: &Terrain) -> Vector3<f64> {
+pub fn find_normal(model: &EarthModel, lat: f64, lon: f64, terrain: &Terrain) -> Vector3<f64> {
     const DIFF: f64 = 15.0;
 
-    let p_north = get_coords_at_dist(shape, (lat, lon), 0.0, DIFF);
-    let p_south = get_coords_at_dist(shape, (lat, lon), 180.0, DIFF);
-    let p_east = get_coords_at_dist(shape, (lat, lon), 90.0, DIFF);
-    let p_west = get_coords_at_dist(shape, (lat, lon), 270.0, DIFF);
+    let p_north = model.get_coords_at_dist((lat, lon), 0.0, DIFF);
+    let p_south = model.get_coords_at_dist((lat, lon), 180.0, DIFF);
+    let p_east = model.get_coords_at_dist((lat, lon), 90.0, DIFF);
+    let p_west = model.get_coords_at_dist((lat, lon), 270.0, DIFF);
 
-    let (dir_north, dir_east, dir_up) = world_directions(shape, lat, lon);
+    let (dir_north, dir_east, dir_up) = model.world_directions(lat, lon);
 
     let diff_ew = terrain.get_elev(p_east.0, p_east.1).unwrap_or(0.0)
         - terrain.get_elev(p_west.0, p_west.1).unwrap_or(0.0);
@@ -49,47 +49,6 @@ pub fn calc_dist(params: &Params, old_state: RayState, new_state: RayState) -> f
     }
 }
 
-const DEGREE_DISTANCE: f64 = 111_111.111;
-
-pub fn get_coords_at_dist(
-    shape: &EarthShape,
-    start: (f64, f64),
-    dir: f64,
-    dist: f64,
-) -> (f64, f64) {
-    match shape {
-        EarthShape::Flat => {
-            let d_lat = dir.to_radians().cos() * dist / DEGREE_DISTANCE;
-            let d_lon =
-                dir.to_radians().sin() * dist / DEGREE_DISTANCE / start.0.to_radians().cos();
-            (start.0 + d_lat, start.1 + d_lon)
-        }
-        EarthShape::Spherical { radius } => {
-            let ang = dist / radius;
-
-            let (dirn, dire, pos) = world_directions(shape, start.0, start.1);
-
-            // vector tangent to Earth's surface in the given direction
-            let dir_rad = dir.to_radians();
-            let sindir = dir_rad.sin();
-            let cosdir = dir_rad.cos();
-
-            let dir = dirn * cosdir + dire * sindir;
-
-            // final_pos = pos*cos(ang) + dir*sin(ang)
-            let sinang = ang.sin();
-            let cosang = ang.cos();
-
-            let fpos = pos * cosang + dir * sinang;
-
-            let final_lat_rad = fpos[2].asin();
-            let final_lon_rad = fpos[1].atan2(fpos[0]);
-
-            (final_lat_rad.to_degrees(), final_lon_rad.to_degrees())
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct PathElem {
     pub dist: f64,
@@ -108,13 +67,13 @@ pub struct TerrainData {
 
 impl TerrainData {
     pub fn from_lat_lon(lat: f64, lon: f64, params: &Params, terrain: &Terrain) -> Self {
-        let normal = find_normal(&params.env.shape, lat, lon, terrain);
+        let normal = find_normal(&params.model, lat, lon, terrain);
         let objects_close = params
             .scene
             .objects
             .iter()
             .enumerate()
-            .filter(|(_, obj)| obj.is_close(&params.env.shape, params.simulation_step, lat, lon))
+            .filter(|(_, obj)| obj.is_close(&params.model, params.simulation_step, lat, lon))
             .map(|(index, _)| index)
             .collect();
         TerrainData {
@@ -217,8 +176,7 @@ pub fn gen_terrain_cache(params: &Params, terrain: &Terrain, dir: f64) -> Vec<Te
 
     let mut result = vec![];
     while distance < params.view.frame.max_distance {
-        let (lat, lon) = get_coords_at_dist(
-            &params.env.shape,
+        let (lat, lon) = params.model.get_coords_at_dist(
             (
                 params.view.position.latitude,
                 params.view.position.longitude,
@@ -237,7 +195,7 @@ pub fn gen_terrain_cache(params: &Params, terrain: &Terrain, dir: f64) -> Vec<Te
 pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
     mut terrain_and_path: I,
     objects: &[Object],
-    earth_shape: &EarthShape,
+    earth_model: &EarthModel,
 ) -> Vec<TracePoint> {
     let (first_terrain, first_path) = terrain_and_path.next().unwrap();
     let mut old_tracing_state = TracingState::new(&first_terrain, first_path.elev, 0.0, 0.0);
@@ -284,7 +242,7 @@ pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
             for object_index in object_indices {
                 let object = &objects[object_index];
                 if let Some((prop, normal, color)) = object.check_collision(
-                    earth_shape,
+                    earth_model,
                     old_tracing_state.ray_coords(),
                     new_tracing_state.ray_coords(),
                 ) {

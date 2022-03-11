@@ -3,10 +3,9 @@ use std::env;
 use crate::{
     generator::params::Position,
     terrain::Terrain,
-    utils::{rgba_to_vec4, spherical_to_cartesian, vec4_to_rgba, Coords},
+    utils::{rgba_to_vec4, vec4_to_rgba, Coords, EarthModel},
 };
 
-use atm_refraction::EarthShape;
 use image::{open, DynamicImage, GenericImageView, Rgba};
 use nalgebra::Vector3;
 
@@ -167,13 +166,13 @@ impl Object {
     #[allow(clippy::many_single_char_names)]
     pub fn check_collision(
         &self,
-        earth_shape: &EarthShape,
+        earth_model: &EarthModel,
         point1: Coords,
         point2: Coords,
     ) -> Option<(f64, Vector3<f64>, Color)> {
-        let pos1 = point1.to_cartesian(earth_shape);
-        let pos2 = point2.to_cartesian(earth_shape);
-        let obj_pos = self.position.to_cartesian(earth_shape);
+        let pos1 = earth_model.to_cartesian(&point1);
+        let pos2 = earth_model.to_cartesian(&point2);
+        let obj_pos = earth_model.to_cartesian(&self.position);
         match self.shape {
             Shape::Cylinder { radius, height } => {
                 let p1 = pos1 - obj_pos;
@@ -183,16 +182,9 @@ impl Object {
                     return None;
                 }
 
-                let v = {
-                    match earth_shape {
-                        EarthShape::Spherical { .. } => {
-                            let lat = self.position.lat;
-                            let lon = self.position.lon;
-                            spherical_to_cartesian(1.0, lat, lon)
-                        }
-                        EarthShape::Flat => Vector3::new(0.0, 0.0, 1.0),
-                    }
-                };
+                let v = earth_model
+                    .world_directions(self.position.lat, self.position.lon)
+                    .2;
 
                 let w = pos2 - pos1;
 
@@ -241,16 +233,9 @@ impl Object {
                 ref texture,
             } => {
                 let ray = pos2 - pos1;
-                let up = {
-                    match earth_shape {
-                        EarthShape::Spherical { .. } => {
-                            let lat = self.position.lat;
-                            let lon = self.position.lon;
-                            spherical_to_cartesian(1.0, lat, lon)
-                        }
-                        EarthShape::Flat => Vector3::new(0.0, 0.0, 1.0),
-                    }
-                };
+                let up = earth_model
+                    .world_directions(self.position.lat, self.position.lon)
+                    .2;
                 let right = ray.cross(&up);
                 let right_len = right.dot(&right).sqrt();
                 let right = right / right_len;
@@ -290,14 +275,13 @@ impl Object {
         }
     }
 
-    pub fn is_close(&self, earth_shape: &EarthShape, sim_step: f64, lat: f64, lon: f64) -> bool {
-        let obj_pos = self.position.to_cartesian(earth_shape);
-        let pos = Coords {
+    pub fn is_close(&self, earth_model: &EarthModel, sim_step: f64, lat: f64, lon: f64) -> bool {
+        let obj_pos = earth_model.to_cartesian(&self.position);
+        let pos = earth_model.to_cartesian(&Coords {
             lat,
             lon,
             elev: self.position.elev,
-        }
-        .to_cartesian(earth_shape);
+        });
         let dist_v = pos - obj_pos;
 
         match self.shape {

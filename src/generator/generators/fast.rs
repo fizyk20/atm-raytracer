@@ -61,7 +61,7 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
                                 .cloned()
                                 .zip(path_cache[y as usize].iter().copied()),
                             &self.params.scene.objects,
-                            &self.params.env.shape,
+                            &self.params.model,
                         );
                         let mut azimuth = get_ray_dir(self.params, x);
                         if azimuth < 0.0 {

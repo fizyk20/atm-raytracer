@@ -8,7 +8,7 @@ use nalgebra::{Matrix, Vector3};
 use rayon::prelude::*;
 
 use super::{
-    utils::{calc_dist, get_coords_at_dist, get_single_pixel, PathElem, TerrainData},
+    utils::{calc_dist, get_single_pixel, PathElem, TerrainData},
     Generator, ResultPixel,
 };
 
@@ -104,7 +104,7 @@ impl<'a, 'b> RectilinearGenerator<'a, 'b> {
         let trace_points = get_single_pixel(
             path_iterator,
             &self.params.scene.objects,
-            &self.params.env.shape,
+            &self.params.model,
         );
         ResultPixel {
             elevation_angle: ray_params.elevation.to_degrees(),
@@ -155,8 +155,7 @@ impl<'a, 'b> PathIterator<'a, 'b> {
             elev: self.ray_state.h,
             path_length: self.path_length,
         };
-        let (lat, lon) = get_coords_at_dist(
-            &self.params.env.shape,
+        let (lat, lon) = self.params.model.get_coords_at_dist(
             (
                 self.params.view.position.latitude,
                 self.params.view.position.longitude,

@@ -87,7 +87,7 @@ impl Cache {
             let trace_points = get_single_pixel(
                 terrain_cache.into_iter().zip(path_cache.into_iter()),
                 &params.scene.objects,
-                &params.env.shape,
+                &params.model,
             );
             let mut azimuth = (point.dir_index as f64 * self.min_dir_step).to_degrees();
             if azimuth < 0.0 {

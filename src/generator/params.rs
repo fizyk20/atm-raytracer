@@ -4,12 +4,12 @@ use crate::{
     coloring::{ColoringMethod, Shading, SimpleColors},
     object::{ConfObject, Object},
     terrain::Terrain,
-    utils::world_directions,
+    utils::EarthModel,
 };
 
 use atm_refraction::{
     air::{Atmosphere, AtmosphereDef},
-    EarthShape, Environment,
+    Environment,
 };
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use nalgebra::Vector3;
@@ -180,7 +180,7 @@ impl ConfColoring {
         self,
         frame: &Frame,
         position: &Position,
-        earth_shape: &EarthShape,
+        earth_model: &EarthModel,
     ) -> Coloring {
         match self {
             ConfColoring::Simple { water_level } => Coloring::Simple {
@@ -196,7 +196,7 @@ impl ConfColoring {
                 let light_zenith_angle = light_zenith_angle.to_radians();
                 let light_dir = light_dir.to_radians();
                 let (dir_north, dir_east, dir_up) =
-                    world_directions(earth_shape, position.latitude, position.longitude);
+                    earth_model.world_directions(position.latitude, position.longitude);
                 let front_azimuth = frame.direction.to_radians();
                 let dir_front = dir_north * front_azimuth.cos() + dir_east * front_azimuth.sin();
                 let dir_right = dir_east * front_azimuth.cos() - dir_north * front_azimuth.sin();
@@ -250,10 +250,10 @@ pub struct View {
 }
 
 impl ConfView {
-    pub fn into_view(self, earth_shape: &EarthShape) -> View {
+    pub fn into_view(self, earth_model: &EarthModel) -> View {
         let coloring = self
             .coloring
-            .into_coloring(&self.frame, &self.position, earth_shape);
+            .into_coloring(&self.frame, &self.position, earth_model);
         View {
             position: self.position,
             frame: self.frame,
@@ -341,7 +341,7 @@ pub struct Config {
     #[serde(default = "AtmosphereDef::us_76")]
     atmosphere: AtmosphereDef,
     #[serde(default = "default_earth_shape")]
-    earth_shape: EarthShape,
+    earth_shape: EarthModel,
     #[serde(default)]
     straight_rays: bool,
     #[serde(default = "default_simulation_step")]
@@ -350,8 +350,8 @@ pub struct Config {
     output: Output,
 }
 
-fn default_earth_shape() -> EarthShape {
-    EarthShape::Spherical {
+fn default_earth_shape() -> EarthModel {
+    EarthModel::Spherical {
         radius: 6_371_000.0,
     }
 }
@@ -378,6 +378,7 @@ impl Default for Config {
 pub struct Params {
     pub scene: Scene,
     pub view: View,
+    pub model: EarthModel,
     pub env: Environment,
     pub straight_rays: bool,
     pub simulation_step: f64,
@@ -395,8 +396,9 @@ impl Config {
         Params {
             scene,
             view: self.view.into_view(&self.earth_shape),
+            model: self.earth_shape,
             env: Environment {
-                shape: self.earth_shape,
+                shape: self.earth_shape.to_shape(),
                 atmosphere,
             },
             straight_rays: self.straight_rays,
@@ -633,11 +635,11 @@ pub fn parse_config(matches: &ArgMatches<'_>) -> Result<Config, ()> {
 
     match (matches.is_present("flat"), matches.value_of("radius")) {
         (true, None) => {
-            config.earth_shape = EarthShape::Flat;
+            config.earth_shape = EarthModel::FlatDistorted;
         }
         (false, Some(radius)) => {
             let r: f64 = radius.parse().expect("Invalid radius passed");
-            config.earth_shape = EarthShape::Spherical { radius: r * 1e3 };
+            config.earth_shape = EarthModel::Spherical { radius: r * 1e3 };
         }
         (true, Some(_)) => panic!("Conflicting Earth shape options chosen!"),
         _ => (),
