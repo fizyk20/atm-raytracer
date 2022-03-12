@@ -339,7 +339,7 @@ pub struct Config {
     #[serde(default)]
     view: ConfView,
     #[serde(default = "AtmosphereDef::us_76")]
-    atmosphere: AtmosphereDef,
+    pub(crate) atmosphere: AtmosphereDef,
     #[serde(default = "default_earth_shape")]
     earth_shape: EarthModel,
     #[serde(default)]
@@ -553,23 +553,26 @@ pub fn subcommand_def() -> App<'static, 'static> {
                 .help("Path to a config file with alternative defaults")
                 .takes_value(true),
         )
-        .arg(
-            Arg::with_name("output-atm-data")
-                .long("output-atm-data")
-                .help("With this switch, the program only outputs the profile of pressure and\
-                    temperature to a file.")
-                .takes_value(false),
-        )
 }
 
-pub fn parse_config(matches: &ArgMatches<'_>) -> Result<Config, ()> {
+pub fn parse_config(filename: &str) -> Config {
+    let mut config_abs_path = env::current_dir().unwrap();
+    config_abs_path.push(filename);
+    let mut config_file = File::open(&config_abs_path).expect(&format!(
+        "couldn't open the config file {:?}",
+        config_abs_path.as_os_str()
+    ));
+    let mut contents = String::new();
+    config_file.read_to_string(&mut contents).expect(&format!(
+        "failed reading from file {:?}",
+        config_abs_path.as_os_str()
+    ));
+    serde_yaml::from_str::<Config>(&contents).expect("failed parsing config file")
+}
+
+pub fn read_config(matches: &ArgMatches<'_>) -> Result<Config, ()> {
     let mut config = if let Some(config_path) = matches.value_of("config") {
-        let mut config_abs_path = env::current_dir().unwrap();
-        config_abs_path.push(&config_path);
-        let mut config_file = File::open(&config_abs_path).unwrap();
-        let mut contents = String::new();
-        config_file.read_to_string(&mut contents).unwrap();
-        serde_yaml::from_str::<Config>(&contents).unwrap()
+        parse_config(config_path)
     } else {
         Default::default()
     };
@@ -649,23 +652,5 @@ pub fn parse_config(matches: &ArgMatches<'_>) -> Result<Config, ()> {
         config.straight_rays = true;
     }
 
-    if matches.is_present("output-atm-data") {
-        output_atm_data(&config);
-        Err(())
-    } else {
-        Ok(config)
-    }
-}
-
-fn output_atm_data(config: &Config) {
-    let atmosphere = Atmosphere::from_def(config.atmosphere.clone());
-    for alt in 0..=5000 {
-        let alt = alt as f64 * 0.2;
-        println!(
-            "{} {} {}",
-            alt,
-            atmosphere.temperature(alt),
-            atmosphere.pressure(alt)
-        );
-    }
+    Ok(config)
 }

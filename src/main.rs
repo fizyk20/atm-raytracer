@@ -1,3 +1,4 @@
+mod atm_printer;
 mod coloring;
 mod generator;
 mod object;
@@ -16,11 +17,13 @@ fn main() {
         .version(crate_version!())
         .subcommand(generator::subcommand_def())
         .subcommand(viewer::subcommand_def())
+        .subcommand(atm_printer::subcommand_def())
         .get_matches();
 
     let result = match matches.subcommand() {
         (generator::SUBCOMMAND, Some(matches)) => generator::generate(matches),
         (viewer::SUBCOMMAND, Some(matches)) => viewer::run(matches),
+        (atm_printer::SUBCOMMAND, Some(matches)) => atm_printer::run(matches),
         _ => panic!("Unknown subcommand!"),
     };
 

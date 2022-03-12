@@ -45,7 +45,7 @@ fn output_metadata(filename: &str, pixels: Vec<Vec<ResultPixel>>, params: Params
 }
 
 pub fn generate(matches: &ArgMatches<'_>) -> Result<(), String> {
-    let config = match params::parse_config(matches) {
+    let config = match params::read_config(matches) {
         Ok(config) => config,
         Err(()) => {
             // this indicates that 'output-atm-data' was chosen and data was printed, nothing more
