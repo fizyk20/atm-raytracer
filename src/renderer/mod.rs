@@ -13,7 +13,7 @@ use crate::{
 
 use image::{ImageBuffer, Pixel, Rgb};
 use imageproc::drawing::{draw_line_segment_mut, draw_text_mut};
-use rusttype::{FontCollection, Scale};
+use rusttype::{Font, Scale};
 
 static FONT: &[u8] = include_bytes!("DejaVuSans.ttf");
 
@@ -128,10 +128,7 @@ fn draw_ticks(
     params: &Params,
     pixels: &[Vec<ResultPixel>],
 ) {
-    let font = FontCollection::from_bytes(FONT)
-        .unwrap()
-        .into_font()
-        .unwrap();
+    let font = Font::try_from_bytes(FONT).unwrap();
     let height = 15.0;
     let scale = Scale {
         x: height,
@@ -149,8 +146,8 @@ fn draw_ticks(
             draw_text_mut(
                 img,
                 Rgb([255, 255, 255]),
-                x - 8,
-                tick.size + 5,
+                x as i32 - 8,
+                tick.size as i32 + 5,
                 scale,
                 &font,
                 &format!("{}", tick.azimuth),
