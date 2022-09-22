@@ -34,7 +34,8 @@ impl TerrainData {
             TerrainData::Loaded(data) => data.get_elev(latitude, longitude),
             TerrainData::Pending(path) => {
                 println!("Lazy loading terrain file: {:?}", path);
-                let data = Self::read_tile(path).expect("Couldn't read a terrain file");
+                let data = Self::read_tile(path)
+                    .expect(&format!("Couldn't read a terrain file {:?}", path));
                 let result = data.get_elev(latitude, longitude);
                 *self = TerrainData::Loaded(data);
                 result
