@@ -46,7 +46,7 @@ impl TracePoint {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum PixelColor {
-    Terrain,
+    Terrain(f64),
     Rgba(Color),
 }
 
@@ -54,13 +54,13 @@ impl PixelColor {
     pub fn alpha(&self) -> f64 {
         match self {
             PixelColor::Rgba(color) => color.a,
-            PixelColor::Terrain => 1.0,
+            PixelColor::Terrain(alpha) => *alpha,
         }
     }
 
     pub fn same_class(&self, other: &PixelColor) -> bool {
         match (self, other) {
-            (PixelColor::Terrain, PixelColor::Terrain) => true,
+            (PixelColor::Terrain(_), PixelColor::Terrain(_)) => true,
             (PixelColor::Rgba(_), PixelColor::Rgba(_)) => true,
             _ => false,
         }
@@ -68,11 +68,14 @@ impl PixelColor {
 
     pub fn interpolate(&self, other: &PixelColor, coeff: f64) -> PixelColor {
         match (self, other) {
-            (PixelColor::Terrain, PixelColor::Terrain) => PixelColor::Terrain,
+            (PixelColor::Terrain(a1), PixelColor::Terrain(a2)) => {
+                PixelColor::Terrain(a1 * (1.0 - coeff) + a2 * coeff)
+            }
             (PixelColor::Rgba(color1), PixelColor::Rgba(color2)) => {
                 PixelColor::Rgba(color1.interpolate(*color2, coeff))
             }
-            _ => PixelColor::Terrain,
+            (PixelColor::Terrain(a1), PixelColor::Rgba(_)) => PixelColor::Terrain(*a1),
+            (PixelColor::Rgba(_), PixelColor::Terrain(a2)) => PixelColor::Terrain(*a2),
         }
     }
 }

@@ -105,6 +105,7 @@ impl<'a, 'b> RectilinearGenerator<'a, 'b> {
             path_iterator,
             &self.params.scene.objects,
             &self.params.model,
+            self.params.scene.terrain_alpha,
         );
         ResultPixel {
             elevation_angle: ray_params.elevation.to_degrees(),

@@ -59,10 +59,16 @@ pub struct ConfScene {
     pub terrain_folder: String,
     #[serde(default)]
     pub objects: Vec<ConfObject>,
+    #[serde(default = "default_terrain_alpha")]
+    pub terrain_alpha: f64,
 }
 
 fn default_terrain_folder() -> String {
     "./terrain".to_string()
+}
+
+fn default_terrain_alpha() -> f64 {
+    1.0
 }
 
 impl Default for ConfScene {
@@ -70,6 +76,7 @@ impl Default for ConfScene {
         Self {
             terrain_folder: default_terrain_folder(),
             objects: vec![],
+            terrain_alpha: default_terrain_alpha(),
         }
     }
 }
@@ -84,6 +91,7 @@ impl ConfScene {
         Scene {
             terrain_folder: self.terrain_folder,
             objects,
+            terrain_alpha: self.terrain_alpha,
         }
     }
 }
@@ -92,6 +100,7 @@ impl ConfScene {
 pub struct Scene {
     pub terrain_folder: String,
     pub objects: Vec<Object>,
+    pub terrain_alpha: f64,
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]

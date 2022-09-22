@@ -196,6 +196,7 @@ pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
     mut terrain_and_path: I,
     objects: &[Object],
     earth_model: &EarthModel,
+    terrain_alpha: f64,
 ) -> Vec<TracePoint> {
     let (first_terrain, first_path) = terrain_and_path.next().unwrap();
     let mut old_tracing_state = TracingState::new(&first_terrain, first_path.elev, 0.0, 0.0);
@@ -210,9 +211,9 @@ pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
             path_elem.dist,
             path_elem.path_length,
         );
-        if path_elem.elev < terrain_data.elev {
-            let diff1 = old_tracing_state.ray_elev - old_tracing_state.terrain_data.elev;
-            let diff2 = new_tracing_state.ray_elev - new_tracing_state.terrain_data.elev;
+        let diff1 = old_tracing_state.ray_elev - old_tracing_state.terrain_data.elev;
+        let diff2 = new_tracing_state.ray_elev - new_tracing_state.terrain_data.elev;
+        if diff1 * diff2 < 0.0 {
             let prop = diff1 / (diff1 - diff2);
             let interpolated = old_tracing_state.interpolate(&new_tracing_state, prop);
             step_result.push((
@@ -224,10 +225,12 @@ pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
                     elevation: interpolated.terrain_data.elev,
                     path_length: interpolated.path_len,
                     normal: interpolated.terrain_data.normal,
-                    color: PixelColor::Terrain,
+                    color: PixelColor::Terrain(terrain_alpha),
                 },
             ));
-            finish = true;
+            if terrain_alpha == 1.0 {
+                finish = true;
+            }
         }
         if !new_tracing_state.terrain_data.objects_close.is_empty()
             || !old_tracing_state.terrain_data.objects_close.is_empty()

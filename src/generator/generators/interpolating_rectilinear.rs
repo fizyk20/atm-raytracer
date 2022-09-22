@@ -88,6 +88,7 @@ impl Cache {
                 terrain_cache.into_iter().zip(path_cache.into_iter()),
                 &params.scene.objects,
                 &params.model,
+                params.scene.terrain_alpha,
             );
             let mut azimuth = (point.dir_index as f64 * self.min_dir_step).to_degrees();
             if azimuth < 0.0 {
