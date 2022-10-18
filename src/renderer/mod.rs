@@ -199,24 +199,24 @@ fn fog(fog_dist: f64, pixel_dist: f64, color: Rgb<u8>) -> Rgb<u8> {
     new_color
 }
 
-fn blend(rgb1: Rgb<u8>, rgb2: Rgb<u8>, a: f64) -> Rgb<u8> {
+fn add(rgb1: Rgb<u8>, rgb2: Rgb<u8>, a: f64) -> Rgb<u8> {
     let color1 = rgb_to_vec3(rgb1);
     let color2 = rgb_to_vec3(rgb2);
-    let result = color1 * a + color2 * (1.0 - a);
+    let result = color1 + color2 * a;
     vec3_to_rgb(result)
 }
 
 pub fn draw_image(pixels: &[Vec<ResultPixel>], params: &Params) -> ImageBuffer<Rgb<u8>, Vec<u8>> {
     let mut img = ImageBuffer::new(params.output.width as u32, params.output.height as u32);
     let coloring = params.view.coloring.coloring_method();
+    let def_color = if params.view.fog_distance.is_some() {
+        Rgb([160, 160, 160])
+    } else {
+        Rgb([28, 28, 28])
+    };
     for (x, y, px) in img.enumerate_pixels_mut() {
-        let def_color = if params.view.fog_distance.is_some() {
-            Rgb([160, 160, 160])
-        } else {
-            Rgb([28, 28, 28])
-        };
-        let mut result = def_color;
-        let mut curr_alpha = 0.0;
+        let mut result = Rgb([0, 0, 0]);
+        let mut accum_neg_alpha = 1.0;
 
         for pixel in &pixels[y as usize][x as usize].trace_points {
             let color1 = coloring.color_for_pixel(pixel);
@@ -225,11 +225,11 @@ pub fn draw_image(pixels: &[Vec<ResultPixel>], params: &Params) -> ImageBuffer<R
             } else {
                 color1
             };
-            result = blend(result, color2, curr_alpha);
-            curr_alpha += (1.0 - curr_alpha) * pixel.color.alpha();
+            result = add(result, color2, accum_neg_alpha * pixel.color.alpha());
+            accum_neg_alpha *= 1.0 - pixel.color.alpha();
         }
 
-        *px = blend(result, def_color, curr_alpha);
+        *px = add(result, def_color, accum_neg_alpha);
     }
 
     img

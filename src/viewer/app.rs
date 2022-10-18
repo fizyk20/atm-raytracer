@@ -123,30 +123,39 @@ impl ViewState {
                 let pixel = &self.data.result[y][x];
                 let elev_ang = pixel.elevation_angle;
                 let azim = pixel.azimuth;
-                let rest = if let Some(tp) = pixel.trace_points.first() {
-                    let lon = as_dms(tp.lon);
-                    let lat = as_dms(tp.lat);
-                    format!(
-                        "Physical data:\n\
-                        Distance: {:.1} km ({:.1} mi)\n\
-                        Elevation: {:.1} m ({:.0} ft)\n\
-                        Latitude: {}°{}'{}\"{} ({:.6})\n\
-                        Longitude: {}°{}'{}\"{} ({:.6})",
-                        tp.distance / 1000.0,
-                        tp.distance / 1609.0,
-                        tp.elevation,
-                        tp.elevation / 0.304,
-                        lat.0,
-                        lat.1,
-                        lat.2,
-                        if tp.lat >= 0.0 { "N" } else { "S" },
-                        tp.lat,
-                        lon.0,
-                        lon.1,
-                        lon.2,
-                        if tp.lon >= 0.0 { "E" } else { "W" },
-                        tp.lon
-                    )
+                let rest = if !pixel.trace_points.is_empty() {
+                    let blobs: Vec<_> = pixel
+                        .trace_points
+                        .iter()
+                        .enumerate()
+                        .map(|(index, tp)| {
+                            let lon = as_dms(tp.lon);
+                            let lat = as_dms(tp.lat);
+                            format!(
+                                "({}) Physical data:\n\
+                                Distance: {:.1} km ({:.1} mi)\n\
+                                Elevation: {:.1} m ({:.0} ft)\n\
+                                Latitude: {}°{}'{}\"{} ({:.6})\n\
+                                Longitude: {}°{}'{}\"{} ({:.6})",
+                                index,
+                                tp.distance / 1000.0,
+                                tp.distance / 1609.0,
+                                tp.elevation,
+                                tp.elevation / 0.304,
+                                lat.0,
+                                lat.1,
+                                lat.2,
+                                if tp.lat >= 0.0 { "N" } else { "S" },
+                                tp.lat,
+                                lon.0,
+                                lon.1,
+                                lon.2,
+                                if tp.lon >= 0.0 { "E" } else { "W" },
+                                tp.lon
+                            )
+                        })
+                        .collect();
+                    blobs.join("\n\n")
                 } else {
                     format!("Physical data: {}", INFO_NONE)
                 };
