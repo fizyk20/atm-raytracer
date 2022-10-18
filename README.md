@@ -118,6 +118,10 @@ scene:
                 # A cylinder has a radius and a height
                 radius: 3.0
                 height: 55.0
+    # the opacity of the terrain - defaults to 1.0 if omitted, which means completely opaque terrain
+    # values less than 1.0 can be used to see what is being obscured by the terrain closer to the 
+    # observer
+    #terrain_alpha: 0.5
 
 # view configuration
 view:
