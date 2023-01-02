@@ -34,8 +34,8 @@ fn diff_azimuth(az1: f64, az2: f64) -> f64 {
     }
 }
 
-fn azimuth_to_x(azimuth: f64, pixels: &[Vec<ResultPixel>]) -> u32 {
-    pixels[0]
+fn azimuth_to_x(azimuth: f64, pixels: &[Vec<ResultPixel>]) -> Option<u32> {
+    let candidate = pixels[0]
         .iter()
         .enumerate()
         .min_by(|(_, pixel1), (_, pixel2)| {
@@ -45,11 +45,19 @@ fn azimuth_to_x(azimuth: f64, pixels: &[Vec<ResultPixel>]) -> u32 {
                 .unwrap()
         })
         .map(|(idx, _)| idx as u32)
-        .unwrap()
+        .unwrap();
+    let neighboring_idx = if candidate == 0 { 1 } else { candidate - 1 };
+    let diff_per_pixel = diff_azimuth(
+        pixels[0][candidate as usize].azimuth,
+        pixels[0][neighboring_idx as usize].azimuth,
+    )
+    .abs();
+    (diff_azimuth(pixels[0][candidate as usize].azimuth, azimuth).abs() < diff_per_pixel * 1.5)
+        .then(|| candidate)
 }
 
-fn elevation_to_y(elevation: f64, pixels: &[Vec<ResultPixel>]) -> u32 {
-    pixels
+fn elevation_to_y(elevation: f64, pixels: &[Vec<ResultPixel>]) -> Option<u32> {
+    let candidate = pixels
         .iter()
         .map(|pixels_row| &pixels_row[0])
         .enumerate()
@@ -60,7 +68,13 @@ fn elevation_to_y(elevation: f64, pixels: &[Vec<ResultPixel>]) -> u32 {
                 .unwrap()
         })
         .map(|(idx, _)| idx as u32)
-        .unwrap()
+        .unwrap();
+    let neighboring_idx = if candidate == 0 { 1 } else { candidate - 1 };
+    let diff_per_pixel = (pixels[candidate as usize][0].elevation_angle
+        - pixels[neighboring_idx as usize][0].elevation_angle)
+        .abs();
+    ((pixels[candidate as usize][0].elevation_angle - elevation).abs() < diff_per_pixel * 1.5)
+        .then(|| candidate)
 }
 
 fn into_draw_ticks(
@@ -74,15 +88,18 @@ fn into_draw_ticks(
             size,
             labelled,
         } => {
-            let x = azimuth_to_x(azimuth, pixels);
-            vec![(
-                x,
-                DrawTick {
-                    angle: azimuth,
-                    size,
-                    labelled,
-                },
-            )]
+            if let Some(x) = azimuth_to_x(azimuth, pixels) {
+                vec![(
+                    x,
+                    DrawTick {
+                        angle: azimuth,
+                        size,
+                        labelled,
+                    },
+                )]
+            } else {
+                vec![]
+            }
         }
         Tick::Multiple {
             bias,
@@ -102,15 +119,16 @@ fn into_draw_ticks(
                 } else {
                     current_az
                 };
-                let x = azimuth_to_x(current_az, pixels);
-                result.push((
-                    x,
-                    DrawTick {
-                        size,
-                        labelled,
-                        angle: azimuth,
-                    },
-                ));
+                if let Some(x) = azimuth_to_x(current_az, pixels) {
+                    result.push((
+                        x,
+                        DrawTick {
+                            size,
+                            labelled,
+                            angle: azimuth,
+                        },
+                    ));
+                }
                 current_az += step;
             }
             result
@@ -129,15 +147,18 @@ fn into_draw_ticks_vertical(
             size,
             labelled,
         } => {
-            let y = elevation_to_y(elevation, pixels);
-            vec![(
-                y,
-                DrawTick {
-                    angle: elevation,
-                    size,
-                    labelled,
-                },
-            )]
+            if let Some(y) = elevation_to_y(elevation, pixels) {
+                vec![(
+                    y,
+                    DrawTick {
+                        angle: elevation,
+                        size,
+                        labelled,
+                    },
+                )]
+            } else {
+                vec![]
+            }
         }
         VerticalTick::Multiple {
             bias,
@@ -158,15 +179,16 @@ fn into_draw_ticks_vertical(
                 } else {
                     current_elev
                 };
-                let y = elevation_to_y(elevation, pixels);
-                result.push((
-                    y,
-                    DrawTick {
-                        size,
-                        labelled,
-                        angle: elevation,
-                    },
-                ));
+                if let Some(y) = elevation_to_y(elevation, pixels) {
+                    result.push((
+                        y,
+                        DrawTick {
+                            size,
+                            labelled,
+                            angle: elevation,
+                        },
+                    ));
+                }
                 current_elev += step;
             }
             result
