@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     generator::{
-        params::{Params, Tick},
+        params::{Params, Tick, VerticalTick},
         ResultPixel,
     },
     utils::{rgb_to_vec3, vec3_to_rgb},
@@ -19,7 +19,7 @@ static FONT: &[u8] = include_bytes!("DejaVuSans.ttf");
 
 struct DrawTick {
     size: u32,
-    azimuth: f64,
+    angle: f64,
     labelled: bool,
 }
 
@@ -48,6 +48,21 @@ fn azimuth_to_x(azimuth: f64, pixels: &[Vec<ResultPixel>]) -> u32 {
         .unwrap()
 }
 
+fn elevation_to_y(elevation: f64, pixels: &[Vec<ResultPixel>]) -> u32 {
+    pixels
+        .iter()
+        .map(|pixels_row| &pixels_row[0])
+        .enumerate()
+        .min_by(|(_, pixel1), (_, pixel2)| {
+            (elevation - pixel1.elevation_angle)
+                .abs()
+                .partial_cmp(&(elevation - pixel2.elevation_angle).abs())
+                .unwrap()
+        })
+        .map(|(idx, _)| idx as u32)
+        .unwrap()
+}
+
 fn into_draw_ticks(
     tick: &Tick,
     params: &Params,
@@ -63,7 +78,7 @@ fn into_draw_ticks(
             vec![(
                 x,
                 DrawTick {
-                    azimuth,
+                    angle: azimuth,
                     size,
                     labelled,
                 },
@@ -93,7 +108,7 @@ fn into_draw_ticks(
                     DrawTick {
                         size,
                         labelled,
-                        azimuth,
+                        angle: azimuth,
                     },
                 ));
                 current_az += step;
@@ -103,12 +118,74 @@ fn into_draw_ticks(
     }
 }
 
-fn gen_ticks(params: &Params, pixels: &[Vec<ResultPixel>]) -> HashMap<u32, DrawTick> {
-    let mut result = HashMap::new();
+fn into_draw_ticks_vertical(
+    tick: &VerticalTick,
+    params: &Params,
+    pixels: &[Vec<ResultPixel>],
+) -> Vec<(u32, DrawTick)> {
+    match *tick {
+        VerticalTick::Single {
+            elevation,
+            size,
+            labelled,
+        } => {
+            let y = elevation_to_y(elevation, pixels);
+            vec![(
+                y,
+                DrawTick {
+                    angle: elevation,
+                    size,
+                    labelled,
+                },
+            )]
+        }
+        VerticalTick::Multiple {
+            bias,
+            step,
+            size,
+            labelled,
+        } => {
+            let aspect = params.output.height as f64 / params.output.width as f64;
+            let min_elev = params.view.frame.tilt - params.view.frame.fov * aspect / 2.0;
+            let max_elev = params.view.frame.tilt + params.view.frame.fov * aspect / 2.0;
+            let mut current_elev = ((min_elev - bias) / step).ceil() * step + bias;
+            let mut result = Vec::new();
+            while current_elev < max_elev {
+                let elevation = if current_elev < -90.0 {
+                    -180.0 - current_elev
+                } else if current_elev > 90.0 {
+                    180.0 - current_elev
+                } else {
+                    current_elev
+                };
+                let y = elevation_to_y(elevation, pixels);
+                result.push((
+                    y,
+                    DrawTick {
+                        size,
+                        labelled,
+                        angle: elevation,
+                    },
+                ));
+                current_elev += step;
+            }
+            result
+        }
+    }
+}
+
+struct TicksToDraw {
+    horizontal: HashMap<u32, DrawTick>,
+    vertical: HashMap<u32, DrawTick>,
+}
+
+fn gen_ticks(params: &Params, pixels: &[Vec<ResultPixel>]) -> TicksToDraw {
+    let mut horizontal = HashMap::new();
+    let mut vertical = HashMap::new();
     for tick in &params.output.ticks {
         let new_ticks = into_draw_ticks(tick, params, pixels);
         for (x, tick) in new_ticks {
-            match result.entry(x) {
+            match horizontal.entry(x) {
                 Entry::Vacant(v) => {
                     v.insert(tick);
                 }
@@ -120,7 +197,25 @@ fn gen_ticks(params: &Params, pixels: &[Vec<ResultPixel>]) -> HashMap<u32, DrawT
             }
         }
     }
-    result
+    for tick in &params.output.vertical_ticks {
+        let new_ticks = into_draw_ticks_vertical(tick, params, pixels);
+        for (y, tick) in new_ticks {
+            match vertical.entry(y) {
+                Entry::Vacant(v) => {
+                    v.insert(tick);
+                }
+                Entry::Occupied(mut o) => {
+                    if o.get().size < tick.size {
+                        o.insert(tick);
+                    }
+                }
+            }
+        }
+    }
+    TicksToDraw {
+        horizontal,
+        vertical,
+    }
 }
 
 fn draw_ticks(
@@ -134,8 +229,11 @@ fn draw_ticks(
         x: height,
         y: height,
     };
-    let ticks = gen_ticks(params, pixels);
-    for (x, tick) in ticks {
+    let TicksToDraw {
+        horizontal,
+        vertical,
+    } = gen_ticks(params, pixels);
+    for (x, tick) in horizontal {
         draw_line_segment_mut(
             img,
             (x as f32, 0.0),
@@ -150,7 +248,26 @@ fn draw_ticks(
                 tick.size as i32 + 5,
                 scale,
                 &font,
-                &format!("{}", tick.azimuth),
+                &format!("{}", tick.angle),
+            );
+        }
+    }
+    for (y, tick) in vertical {
+        draw_line_segment_mut(
+            img,
+            (0.0, y as f32),
+            (tick.size as f32, y as f32),
+            Rgb([255, 255, 255]),
+        );
+        if tick.labelled {
+            draw_text_mut(
+                img,
+                Rgb([255, 255, 255]),
+                tick.size as i32 + 5,
+                y as i32 - 7,
+                scale,
+                &font,
+                &format!("{}", tick.angle),
             );
         }
     }

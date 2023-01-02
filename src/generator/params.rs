@@ -287,6 +287,21 @@ pub enum Tick {
     },
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+pub enum VerticalTick {
+    Single {
+        elevation: f64,
+        size: u32,
+        labelled: bool,
+    },
+    Multiple {
+        bias: f64,
+        step: f64,
+        size: u32,
+        labelled: bool,
+    },
+}
+
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum GeneratorDef {
     Fast,
@@ -305,6 +320,8 @@ pub struct Output {
     pub height: u16,
     #[serde(default)]
     pub ticks: Vec<Tick>,
+    #[serde(default)]
+    pub vertical_ticks: Vec<VerticalTick>,
     #[serde(default)]
     pub show_eye_level: bool,
     #[serde(default = "default_generator")]
@@ -335,6 +352,7 @@ impl Default for Output {
             width: default_width(),
             height: default_height(),
             ticks: Vec::new(),
+            vertical_ticks: Vec::new(),
             show_eye_level: false,
             generator: default_generator(),
         }
