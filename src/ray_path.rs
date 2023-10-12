@@ -1,7 +1,7 @@
 use atm_refraction::{air::Atmosphere, Environment};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-pub const SUBCOMMAND: &'static str = "output-ray-paths";
+pub const SUBCOMMAND: &str = "output-ray-paths";
 
 pub fn run(matches: &ArgMatches<'_>) -> Result<(), String> {
     let filename = matches
