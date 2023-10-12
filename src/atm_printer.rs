@@ -1,5 +1,5 @@
 use atm_refraction::air::Atmosphere;
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 pub const SUBCOMMAND: &str = "output-atm";
 
@@ -36,10 +36,11 @@ pub fn run(matches: &ArgMatches<'_>) -> Result<(), String> {
 
     while alt <= max_alt {
         println!(
-            "{} {} {}",
+            "{} {} {} {}",
             alt,
             atmosphere.temperature(alt) - if celsius { 273.15 } else { 0.0 },
-            atmosphere.pressure(alt)
+            atmosphere.pressure(alt),
+            atmosphere.humidity(alt)
         );
         alt += step;
     }
@@ -50,6 +51,7 @@ pub fn run(matches: &ArgMatches<'_>) -> Result<(), String> {
 pub fn subcommand_def() -> App<'static, 'static> {
     SubCommand::with_name(SUBCOMMAND)
         .about("Print the atmospheric profile")
+        .setting(AppSettings::AllowLeadingHyphen)
         .arg(
             Arg::with_name("input")
                 .help("Path to the input file")

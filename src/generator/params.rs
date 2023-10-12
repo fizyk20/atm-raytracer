@@ -377,7 +377,7 @@ pub struct Config {
     #[serde(default = "AtmosphereDef::us_76")]
     pub(crate) atmosphere: AtmosphereDef,
     #[serde(default = "default_earth_shape")]
-    earth_shape: EarthModel,
+    pub(crate) earth_shape: EarthModel,
     #[serde(default)]
     straight_rays: bool,
     #[serde(default = "default_simulation_step")]

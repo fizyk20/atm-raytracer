@@ -2,6 +2,7 @@ mod atm_printer;
 mod coloring;
 mod generator;
 mod object;
+mod ray_path;
 mod renderer;
 mod terrain;
 mod utils;
@@ -18,12 +19,14 @@ fn main() {
         .subcommand(generator::subcommand_def())
         .subcommand(viewer::subcommand_def())
         .subcommand(atm_printer::subcommand_def())
+        .subcommand(ray_path::subcommand_def())
         .get_matches();
 
     let result = match matches.subcommand() {
         (generator::SUBCOMMAND, Some(matches)) => generator::generate(matches),
         (viewer::SUBCOMMAND, Some(matches)) => viewer::run(matches),
         (atm_printer::SUBCOMMAND, Some(matches)) => atm_printer::run(matches),
+        (ray_path::SUBCOMMAND, Some(matches)) => ray_path::run(matches),
         _ => panic!("Unknown subcommand!"),
     };
 
