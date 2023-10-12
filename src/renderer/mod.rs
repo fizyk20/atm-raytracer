@@ -295,16 +295,24 @@ fn draw_ticks(
     }
 }
 
-fn find_eye_level(pixels: &[Vec<ResultPixel>], column: u32) -> u32 {
-    let mut min_elev = f64::INFINITY;
-    let mut min_elev_idx = 0;
+fn find_elev(pixels: &[Vec<ResultPixel>], column: u32, elev: f64) -> Option<u32> {
+    let mut closest_elev = f64::INFINITY;
+    let mut closest_elev_idx = 0;
     for (y, row) in pixels.iter().enumerate() {
-        if row[column as usize].elevation_angle.abs() < min_elev {
-            min_elev = row[column as usize].elevation_angle.abs();
-            min_elev_idx = y;
+        if (row[column as usize].elevation_angle - elev).abs() < (closest_elev - elev).abs() {
+            closest_elev = row[column as usize].elevation_angle;
+            closest_elev_idx = y;
         }
     }
-    min_elev_idx as u32
+    let neighbor = if closest_elev_idx == 0 {
+        1
+    } else {
+        closest_elev_idx - 1
+    };
+    let neighbor_elev = pixels[neighbor][column as usize].elevation_angle;
+
+    ((closest_elev - elev).abs() < (neighbor_elev - closest_elev).abs() * 1.5)
+        .then(|| closest_elev_idx as u32)
 }
 
 fn draw_eye_level(
@@ -312,18 +320,21 @@ fn draw_eye_level(
     params: &Params,
     pixels: &[Vec<ResultPixel>],
 ) {
-    if params.output.show_eye_level {
-        let mut y_old = find_eye_level(pixels, 0);
-        for x in 1..params.output.width {
-            let y_new = find_eye_level(pixels, x as u32);
+    if !params.output.show_eye_level {
+        return;
+    }
+    let mut maybe_y_old = find_elev(pixels, 0, 0.0);
+    for x in 1..params.output.width {
+        let maybe_y_new = find_elev(pixels, x as u32, 0.0);
+        if let (Some(y_old), Some(y_new)) = (maybe_y_old, maybe_y_new) {
             draw_line_segment_mut(
                 img,
                 ((x - 1) as f32, y_old as f32),
                 (x as f32, y_new as f32),
                 Rgb([255, 128, 255]),
             );
-            y_old = y_new;
         }
+        maybe_y_old = maybe_y_new;
     }
 }
 
