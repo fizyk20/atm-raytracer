@@ -83,7 +83,7 @@ pub fn generate(matches: &ArgMatches<'_>) -> Result<(), String> {
         "{:.3}: Outputting image...",
         start.elapsed().unwrap().as_secs_f64()
     );
-    crate::renderer::output_image(&result_pixels, &params);
+    crate::renderer::output_image(&result_pixels, &params, &terrain);
 
     if let Some(ref filename) = params.output.file_metadata {
         println!(

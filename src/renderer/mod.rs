@@ -8,9 +8,11 @@ use crate::{
         params::{Params, Tick, VerticalTick},
         ResultPixel,
     },
+    terrain::Terrain,
     utils::{rgb_to_vec3, vec3_to_rgb},
 };
 
+use atm_refraction::EarthShape;
 use image::{ImageBuffer, Pixel, Rgb};
 use imageproc::drawing::{draw_line_segment_mut, draw_text_mut};
 use rusttype::{Font, Scale};
@@ -315,23 +317,22 @@ fn find_elev(pixels: &[Vec<ResultPixel>], column: u32, elev: f64) -> Option<u32>
         .then_some(closest_elev_idx as u32)
 }
 
-fn draw_eye_level(
+fn draw_const_elev(
     img: &mut ImageBuffer<Rgb<u8>, Vec<<Rgb<u8> as Pixel>::Subpixel>>,
     params: &Params,
     pixels: &[Vec<ResultPixel>],
+    elev: f64,
+    color: [u8; 3],
 ) {
-    if !params.output.show_eye_level {
-        return;
-    }
-    let mut maybe_y_old = find_elev(pixels, 0, 0.0);
+    let mut maybe_y_old = find_elev(pixels, 0, elev);
     for x in 1..params.output.width {
-        let maybe_y_new = find_elev(pixels, x as u32, 0.0);
+        let maybe_y_new = find_elev(pixels, x as u32, elev);
         if let (Some(y_old), Some(y_new)) = (maybe_y_old, maybe_y_new) {
             draw_line_segment_mut(
                 img,
                 ((x - 1) as f32, y_old as f32),
                 (x as f32, y_new as f32),
-                Rgb([255, 128, 255]),
+                Rgb(color),
             );
         }
         maybe_y_old = maybe_y_new;
@@ -385,11 +386,22 @@ pub fn draw_image(pixels: &[Vec<ResultPixel>], params: &Params) -> ImageBuffer<R
     img
 }
 
-pub fn output_image(pixels: &[Vec<ResultPixel>], params: &Params) {
+pub fn output_image(pixels: &[Vec<ResultPixel>], params: &Params, terrain: &Terrain) {
     let mut img = draw_image(pixels, params);
 
     draw_ticks(&mut img, params, pixels);
-    draw_eye_level(&mut img, params, pixels);
+    if params.output.show_flat_horizon
+        && matches!(params.env.shape, EarthShape::Flat)
+        && !params.straight_rays
+    {
+        let observer_alt = params.view.position.abs_altitude(terrain);
+        let n_at_observer_height = params.env.n(observer_alt);
+        let elev = (1.0 / n_at_observer_height).acos().to_degrees();
+        draw_const_elev(&mut img, params, pixels, elev, [0, 128, 255]);
+    }
+    if params.output.show_eye_level {
+        draw_const_elev(&mut img, params, pixels, 0.0, [255, 128, 255]);
+    }
 
     let mut output_file = env::current_dir().unwrap();
     output_file.push(&params.output.file);

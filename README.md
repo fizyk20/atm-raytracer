@@ -244,6 +244,12 @@ output:
           labelled: true
     # whether to show a line representing the eye level (the horizontal direction)
     show_eye_level: true
+    # whether to show a line indicating where the "horizon" would be on a flat Earth
+    # (on a flat Earth with refraction, there is a critical angle below which the observer sees
+    # the surface, and above which they see the sky, with the line separating the two being the
+    # "horizon" in question - the angle is equal to arccos(1/n) above horizontal, where n is the
+    # index of refraction of the atmosphere at the observer's position)
+    show_flat_horizon: false
     # The generating algorithm to be used - there are three options:
     # - Fast - faster, but introducing distortions in the picture (negligible with small fields of
     # view near horizontal

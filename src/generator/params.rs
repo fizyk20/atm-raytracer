@@ -53,6 +53,12 @@ impl Default for Position {
     }
 }
 
+impl Position {
+    pub fn abs_altitude(&self, terrain: &Terrain) -> f64 {
+        self.altitude.abs(terrain, self.latitude, self.longitude)
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ConfScene {
     #[serde(default = "default_terrain_folder")]
@@ -324,6 +330,8 @@ pub struct Output {
     pub vertical_ticks: Vec<VerticalTick>,
     #[serde(default)]
     pub show_eye_level: bool,
+    #[serde(default)]
+    pub show_flat_horizon: bool,
     #[serde(default = "default_generator")]
     pub generator: GeneratorDef,
 }
@@ -354,6 +362,7 @@ impl Default for Output {
             ticks: Vec::new(),
             vertical_ticks: Vec::new(),
             show_eye_level: false,
+            show_flat_horizon: false,
             generator: default_generator(),
         }
     }
