@@ -35,7 +35,7 @@ impl TerrainData {
             TerrainData::Pending(path) => {
                 println!("Lazy loading terrain file: {:?}", path);
                 let data = Self::read_tile(path)
-                    .expect(&format!("Couldn't read a terrain file {:?}", path));
+                    .unwrap_or_else(|| panic!("Couldn't read a terrain file {:?}", path));
                 let result = data.get_elev(latitude, longitude);
                 *self = TerrainData::Loaded(data);
                 result
@@ -101,9 +101,7 @@ impl Terrain {
     }
 
     pub fn buffer_file(&mut self, path: PathBuf) {
-        if self.buffer_dted(path.clone()) {
-            return;
-        } else if self.buffer_geotiff(path.clone()) {
+        if self.buffer_dted(path.clone()) || self.buffer_geotiff(path.clone()) {
             return;
         }
         panic!("Could not buffer terrain file {:?}", path);

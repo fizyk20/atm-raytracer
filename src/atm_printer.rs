@@ -1,7 +1,7 @@
 use atm_refraction::air::Atmosphere;
 use clap::{App, Arg, ArgMatches, SubCommand};
 
-pub const SUBCOMMAND: &'static str = "output-atm";
+pub const SUBCOMMAND: &str = "output-atm";
 
 pub fn run(matches: &ArgMatches<'_>) -> Result<(), String> {
     let filename = matches

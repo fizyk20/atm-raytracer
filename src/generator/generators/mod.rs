@@ -59,11 +59,11 @@ impl PixelColor {
     }
 
     pub fn same_class(&self, other: &PixelColor) -> bool {
-        match (self, other) {
-            (PixelColor::Terrain(_), PixelColor::Terrain(_)) => true,
-            (PixelColor::Rgba(_), PixelColor::Rgba(_)) => true,
-            _ => false,
-        }
+        matches!(
+            (self, other),
+            (PixelColor::Terrain(_), PixelColor::Terrain(_))
+                | (PixelColor::Rgba(_), PixelColor::Rgba(_))
+        )
     }
 
     pub fn interpolate(&self, other: &PixelColor, coeff: f64) -> PixelColor {

@@ -170,9 +170,9 @@ impl Object {
         point1: Coords,
         point2: Coords,
     ) -> Option<(f64, Vector3<f64>, Color)> {
-        let pos1 = earth_model.to_cartesian(&point1);
-        let pos2 = earth_model.to_cartesian(&point2);
-        let obj_pos = earth_model.to_cartesian(&self.position);
+        let pos1 = earth_model.as_cartesian(&point1);
+        let pos2 = earth_model.as_cartesian(&point2);
+        let obj_pos = earth_model.as_cartesian(&self.position);
         match self.shape {
             Shape::Cylinder { radius, height } => {
                 let p1 = pos1 - obj_pos;
@@ -276,8 +276,8 @@ impl Object {
     }
 
     pub fn is_close(&self, earth_model: &EarthModel, sim_step: f64, lat: f64, lon: f64) -> bool {
-        let obj_pos = earth_model.to_cartesian(&self.position);
-        let pos = earth_model.to_cartesian(&Coords {
+        let obj_pos = earth_model.as_cartesian(&self.position);
+        let pos = earth_model.as_cartesian(&Coords {
             lat,
             lon,
             elev: self.position.elev,

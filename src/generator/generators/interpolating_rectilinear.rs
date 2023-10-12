@@ -85,7 +85,7 @@ impl Cache {
             let path_cache = self.get_path_cache(params, terrain, point.elev_index);
             let terrain_cache = self.get_terrain_cache(params, terrain, point.dir_index);
             let trace_points = get_single_pixel(
-                terrain_cache.into_iter().zip(path_cache.into_iter()),
+                terrain_cache.into_iter().zip(path_cache),
                 &params.scene.objects,
                 &params.model,
                 params.scene.terrain_alpha,

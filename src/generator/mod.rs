@@ -15,7 +15,7 @@ pub use generators::{
 pub use params::subcommand_def;
 use params::{GeneratorDef, Params};
 
-pub const SUBCOMMAND: &'static str = "gen";
+pub const SUBCOMMAND: &str = "gen";
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AllData {

@@ -39,7 +39,7 @@ impl EarthModel {
         }
     }
 
-    pub fn to_cartesian(&self, coords: &Coords) -> Vector3<f64> {
+    pub fn as_cartesian(&self, coords: &Coords) -> Vector3<f64> {
         match *self {
             EarthModel::Spherical { radius } => {
                 spherical_to_cartesian(radius + coords.elev, coords.lat, coords.lon)
@@ -68,7 +68,7 @@ impl EarthModel {
     pub fn get_coords_at_dist(&self, start: (f64, f64), dir: f64, dist: f64) -> (f64, f64) {
         match self {
             EarthModel::AzimuthalEquidistant => {
-                let pos = self.to_cartesian(&Coords {
+                let pos = self.as_cartesian(&Coords {
                     lat: start.0,
                     lon: start.1,
                     elev: 0.0,

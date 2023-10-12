@@ -27,7 +27,7 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
         let terrain_cache = (0..self.params.output.width)
             .into_par_iter()
             .map(|x| {
-                let dir = get_ray_dir(self.params, x as u16);
+                let dir = get_ray_dir(self.params, x);
                 gen_terrain_cache(self.params, self.terrain, dir)
             })
             .collect::<Vec<_>>();
@@ -38,7 +38,7 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
         let path_cache = (0..self.params.output.height)
             .into_par_iter()
             .map(|y| {
-                let ray_elev = get_ray_elev(self.params, y as u16);
+                let ray_elev = get_ray_elev(self.params, y);
                 gen_path_cache(self.params, self.terrain, ray_elev)
             })
             .collect::<Vec<_>>();

@@ -32,8 +32,8 @@ struct ViewState {
 const CURSOR_SIZE: i32 = 20;
 const CURSOR_RADIUS: i32 = 10;
 
-const INFO_TITLE: &'static str = "Info about the selected pixel:";
-const INFO_NONE: &'static str = "<none>";
+const INFO_TITLE: &str = "Info about the selected pixel:";
+const INFO_NONE: &str = "<none>";
 
 fn as_dms(ang: f64) -> (usize, usize, usize) {
     let ang = ang.abs();
@@ -253,7 +253,7 @@ pub fn run(data: AllData) -> Result<(), String> {
     let state = Rc::new(RefCell::new(ViewState::new(image, data, fw, fh)));
 
     let offs = Rc::new(RefCell::new(Offscreen::new(fw, fh).unwrap()));
-    state.borrow_mut().draw(&mut *offs.borrow_mut());
+    state.borrow_mut().draw(&mut offs.borrow_mut());
 
     let offs_rc = offs.clone();
     let state_rc = state.clone();
@@ -262,7 +262,7 @@ pub fn run(data: AllData) -> Result<(), String> {
         if offs_rc.borrow().is_valid() {
             offs_rc.borrow().copy(f.x(), f.y(), f.w(), f.h(), 0, 0);
         } else {
-            state_rc.borrow_mut().draw(&mut *offs_rc.borrow_mut());
+            state_rc.borrow_mut().draw(&mut offs_rc.borrow_mut());
         }
     });
 
@@ -280,7 +280,7 @@ pub fn run(data: AllData) -> Result<(), String> {
             let (x, y) = state_rc.borrow().mouse_pos();
             state_rc.borrow_mut().pan(coords.0 - x, coords.1 - y);
             state_rc.borrow_mut().set_mouse_pos(coords.0, coords.1);
-            state_rc.borrow_mut().draw(&mut *offs_rc.borrow_mut());
+            state_rc.borrow_mut().draw(&mut offs_rc.borrow_mut());
             f.redraw();
             true
         }
@@ -294,7 +294,7 @@ pub fn run(data: AllData) -> Result<(), String> {
                 }
                 _ => (),
             }
-            state_rc.borrow_mut().draw(&mut *offs_rc.borrow_mut());
+            state_rc.borrow_mut().draw(&mut offs_rc.borrow_mut());
             f.redraw();
             true
         }
@@ -305,17 +305,17 @@ pub fn run(data: AllData) -> Result<(), String> {
         Event::KeyDown => match app::event_key() {
             Key::Escape => {
                 state.borrow_mut().clear_cursor();
-                state.borrow_mut().draw(&mut *offs.borrow_mut());
+                state.borrow_mut().draw(&mut offs.borrow_mut());
                 frame.redraw();
                 state.borrow().set_label(&mut label);
                 true
             }
             _ => {
                 let string = app::event_text();
-                if string.starts_with(" ") {
+                if string.starts_with(' ') {
                     let coords = app::event_coords();
                     state.borrow_mut().set_cursor(coords.0, coords.1);
-                    state.borrow_mut().draw(&mut *offs.borrow_mut());
+                    state.borrow_mut().draw(&mut offs.borrow_mut());
                     frame.redraw();
                     state.borrow().set_label(&mut label);
                     true

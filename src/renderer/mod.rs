@@ -53,7 +53,7 @@ fn azimuth_to_x(azimuth: f64, pixels: &[Vec<ResultPixel>]) -> Option<u32> {
     )
     .abs();
     (diff_azimuth(pixels[0][candidate as usize].azimuth, azimuth).abs() < diff_per_pixel * 1.5)
-        .then(|| candidate)
+        .then_some(candidate)
 }
 
 fn elevation_to_y(elevation: f64, pixels: &[Vec<ResultPixel>]) -> Option<u32> {
@@ -74,7 +74,7 @@ fn elevation_to_y(elevation: f64, pixels: &[Vec<ResultPixel>]) -> Option<u32> {
         - pixels[neighboring_idx as usize][0].elevation_angle)
         .abs();
     ((pixels[candidate as usize][0].elevation_angle - elevation).abs() < diff_per_pixel * 1.5)
-        .then(|| candidate)
+        .then_some(candidate)
 }
 
 fn into_draw_ticks(
@@ -312,7 +312,7 @@ fn find_elev(pixels: &[Vec<ResultPixel>], column: u32, elev: f64) -> Option<u32>
     let neighbor_elev = pixels[neighbor][column as usize].elevation_angle;
 
     ((closest_elev - elev).abs() < (neighbor_elev - closest_elev).abs() * 1.5)
-        .then(|| closest_elev_idx as u32)
+        .then_some(closest_elev_idx as u32)
 }
 
 fn draw_eye_level(
@@ -388,8 +388,8 @@ pub fn draw_image(pixels: &[Vec<ResultPixel>], params: &Params) -> ImageBuffer<R
 pub fn output_image(pixels: &[Vec<ResultPixel>], params: &Params) {
     let mut img = draw_image(pixels, params);
 
-    draw_ticks(&mut img, &params, pixels);
-    draw_eye_level(&mut img, &params, pixels);
+    draw_ticks(&mut img, params, pixels);
+    draw_eye_level(&mut img, params, pixels);
 
     let mut output_file = env::current_dir().unwrap();
     output_file.push(&params.output.file);

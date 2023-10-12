@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{path::Path, str::FromStr};
 
 use geotiff_rs::GeoTiff;
 use lazy_static::lazy_static;
@@ -13,7 +13,7 @@ pub struct GeoTiffWrapper {
 }
 
 impl GeoTiffWrapper {
-    pub fn coords_from_name(name: &PathBuf) -> Option<(i16, i16)> {
+    pub fn coords_from_name(name: &Path) -> Option<(i16, i16)> {
         lazy_static! {
             static ref RE: Regex = Regex::new("(N|S)(\\d+)(E|W)(\\d+)").unwrap();
         }
@@ -30,7 +30,7 @@ impl GeoTiffWrapper {
         Some((lat, lon))
     }
 
-    pub fn from_path(name: &PathBuf) -> Option<Self> {
+    pub fn from_path(name: &Path) -> Option<Self> {
         let (lat, lon) = Self::coords_from_name(name)?;
         let data = GeoTiff::from_file(name).ok()?;
         Some(Self {

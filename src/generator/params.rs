@@ -585,15 +585,16 @@ pub fn subcommand_def() -> App<'static, 'static> {
 pub fn parse_config(filename: &str) -> Config {
     let mut config_abs_path = env::current_dir().unwrap();
     config_abs_path.push(filename);
-    let mut config_file = File::open(&config_abs_path).expect(&format!(
-        "couldn't open the config file {:?}",
-        config_abs_path.as_os_str()
-    ));
+    let mut config_file = File::open(&config_abs_path).unwrap_or_else(|_| {
+        panic!(
+            "couldn't open the config file {:?}",
+            config_abs_path.as_os_str()
+        )
+    });
     let mut contents = String::new();
-    config_file.read_to_string(&mut contents).expect(&format!(
-        "failed reading from file {:?}",
-        config_abs_path.as_os_str()
-    ));
+    config_file
+        .read_to_string(&mut contents)
+        .unwrap_or_else(|_| panic!("failed reading from file {:?}", config_abs_path.as_os_str()));
     serde_yaml::from_str::<Config>(&contents).expect("failed parsing config file")
 }
 

@@ -7,7 +7,7 @@ use libflate::gzip::Decoder;
 
 use crate::generator::AllData;
 
-pub const SUBCOMMAND: &'static str = "view";
+pub const SUBCOMMAND: &str = "view";
 
 pub fn run(matches: &ArgMatches<'_>) -> Result<(), String> {
     let filename = matches
