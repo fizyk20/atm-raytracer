@@ -278,6 +278,11 @@ impl ConfView {
     }
 }
 
+pub trait TickLike {
+    fn labelled(&self) -> bool;
+    fn angle(&self) -> f64;
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Tick {
     Single {
@@ -293,6 +298,21 @@ pub enum Tick {
     },
 }
 
+impl TickLike for Tick {
+    fn labelled(&self) -> bool {
+        match self {
+            Tick::Single { labelled, .. } | Tick::Multiple { labelled, .. } => *labelled,
+        }
+    }
+
+    fn angle(&self) -> f64 {
+        match self {
+            Tick::Single { azimuth, .. } => *azimuth,
+            Tick::Multiple { step, .. } => *step,
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub enum VerticalTick {
     Single {
@@ -306,6 +326,23 @@ pub enum VerticalTick {
         size: u32,
         labelled: bool,
     },
+}
+
+impl TickLike for VerticalTick {
+    fn labelled(&self) -> bool {
+        match self {
+            VerticalTick::Single { labelled, .. } | VerticalTick::Multiple { labelled, .. } => {
+                *labelled
+            }
+        }
+    }
+
+    fn angle(&self) -> f64 {
+        match self {
+            VerticalTick::Single { elevation, .. } => *elevation,
+            VerticalTick::Multiple { step, .. } => *step,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]

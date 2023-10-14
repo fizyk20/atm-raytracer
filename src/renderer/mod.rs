@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     generator::{
-        params::{Params, Tick, VerticalTick},
+        params::{Params, Tick, TickLike, VerticalTick},
         ResultPixel,
     },
     terrain::Terrain,
@@ -21,7 +21,7 @@ static FONT: &[u8] = include_bytes!("DejaVuSans.ttf");
 
 struct DrawTick {
     size: u32,
-    angle: f64,
+    angle: String,
     labelled: bool,
 }
 
@@ -83,6 +83,7 @@ fn into_draw_ticks(
     tick: &Tick,
     params: &Params,
     pixels: &[Vec<ResultPixel>],
+    decimals: usize,
 ) -> Vec<(u32, DrawTick)> {
     match *tick {
         Tick::Single {
@@ -94,7 +95,7 @@ fn into_draw_ticks(
                 vec![(
                     x,
                     DrawTick {
-                        angle: azimuth,
+                        angle: format!("{:.1$}", azimuth, decimals),
                         size,
                         labelled,
                     },
@@ -127,7 +128,7 @@ fn into_draw_ticks(
                         DrawTick {
                             size,
                             labelled,
-                            angle: azimuth,
+                            angle: format!("{:.1$}", azimuth, decimals),
                         },
                     ));
                 }
@@ -142,6 +143,7 @@ fn into_draw_ticks_vertical(
     tick: &VerticalTick,
     params: &Params,
     pixels: &[Vec<ResultPixel>],
+    decimals: usize,
 ) -> Vec<(u32, DrawTick)> {
     match *tick {
         VerticalTick::Single {
@@ -153,7 +155,7 @@ fn into_draw_ticks_vertical(
                 vec![(
                     y,
                     DrawTick {
-                        angle: elevation,
+                        angle: format!("{:.1$}", elevation, decimals),
                         size,
                         labelled,
                     },
@@ -187,7 +189,7 @@ fn into_draw_ticks_vertical(
                         DrawTick {
                             size,
                             labelled,
-                            angle: elevation,
+                            angle: format!("{:.1$}", elevation, decimals),
                         },
                     ));
                 }
@@ -203,11 +205,34 @@ struct TicksToDraw {
     vertical: HashMap<u32, DrawTick>,
 }
 
+fn num_decimals(x: f64) -> usize {
+    for i in 0..10 {
+        let mul_x = x * 10.0_f64.powi(i as i32);
+        if (mul_x.round() - mul_x).abs() < 0.001 {
+            return i;
+        }
+    }
+    return 10;
+}
+
+fn round_decimals<T: TickLike>(ticks: &[T]) -> usize {
+    ticks
+        .iter()
+        .filter(|tick| tick.labelled())
+        .map(|tick| num_decimals(tick.angle()))
+        .max()
+        .unwrap_or(0)
+}
+
 fn gen_ticks(params: &Params, pixels: &[Vec<ResultPixel>]) -> TicksToDraw {
     let mut horizontal = HashMap::new();
     let mut vertical = HashMap::new();
+
+    let horizontal_decimals = round_decimals(&params.output.ticks);
+    let vertical_decimals = round_decimals(&params.output.vertical_ticks);
+
     for tick in &params.output.ticks {
-        let new_ticks = into_draw_ticks(tick, params, pixels);
+        let new_ticks = into_draw_ticks(tick, params, pixels, horizontal_decimals);
         for (x, tick) in new_ticks {
             match horizontal.entry(x) {
                 Entry::Vacant(v) => {
@@ -222,7 +247,7 @@ fn gen_ticks(params: &Params, pixels: &[Vec<ResultPixel>]) -> TicksToDraw {
         }
     }
     for tick in &params.output.vertical_ticks {
-        let new_ticks = into_draw_ticks_vertical(tick, params, pixels);
+        let new_ticks = into_draw_ticks_vertical(tick, params, pixels, vertical_decimals);
         for (y, tick) in new_ticks {
             match vertical.entry(y) {
                 Entry::Vacant(v) => {
@@ -407,4 +432,27 @@ pub fn output_image(pixels: &[Vec<ResultPixel>], params: &Params, terrain: &Terr
     output_file.push(&params.output.file);
 
     img.save(output_file).unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::num_decimals;
+
+    #[test]
+    fn test_decimals() {
+        assert_eq!(num_decimals(0.0), 0);
+        assert_eq!(num_decimals(1.0), 0);
+        assert_eq!(num_decimals(15.0), 0);
+        assert_eq!(num_decimals(183.0), 0);
+        assert_eq!(num_decimals(0.1), 1);
+        assert_eq!(num_decimals(0.3), 1);
+        assert_eq!(num_decimals(0.9), 1);
+        assert_eq!(num_decimals(1.8), 1);
+        assert_eq!(num_decimals(12.6), 1);
+        assert_eq!(num_decimals(133.5), 1);
+        assert_eq!(num_decimals(0.25), 2);
+        assert_eq!(num_decimals(33.99), 2);
+        assert_eq!(num_decimals(33.01), 2);
+        assert_eq!(num_decimals(133.01002), 5);
+    }
 }
