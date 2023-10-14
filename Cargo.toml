@@ -1,6 +1,6 @@
 [package]
 name = "atm-raytracer"
-version = "0.11.0"
+version = "0.11.1"
 authors = ["Bartłomiej Kamiński <fizyk20@gmail.com>"]
 edition = "2018"
 
