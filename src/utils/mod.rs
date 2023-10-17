@@ -3,7 +3,7 @@ mod earth_model;
 use image::{Rgb, Rgba};
 use nalgebra::{Vector3, Vector4};
 
-pub use earth_model::{spherical_to_cartesian, EarthModel};
+pub use earth_model::{spherical_to_cartesian, DirectionalCalc, EarthModel};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Coords {

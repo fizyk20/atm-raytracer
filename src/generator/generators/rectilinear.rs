@@ -12,7 +12,7 @@ use super::{
     Generator, ResultPixel,
 };
 
-use crate::{generator::params::Params, terrain::Terrain};
+use crate::{generator::params::Params, terrain::Terrain, utils::DirectionalCalc};
 
 pub struct RectilinearGenerator<'a, 'b> {
     params: &'a Params,
@@ -118,8 +118,8 @@ impl<'a, 'b> RectilinearGenerator<'a, 'b> {
 struct PathIterator<'a, 'b> {
     path_length: f64,
     ray_state: RayState,
-    azimuth: f64,
     ray: Box<dyn PathStepper<Item = RayState> + 'a>,
+    dist_calc: Box<dyn DirectionalCalc>,
     params: &'a Params,
     terrain: &'b Terrain,
 }
@@ -136,6 +136,14 @@ impl<'a, 'b> PathIterator<'a, 'b> {
             .cast_ray_stepper(alt, ray_params.elevation, params.straight_rays);
         ray.set_step_size(params.simulation_step);
 
+        let dist_calc = params.model.coords_at_dist_calc(
+            (
+                params.view.position.latitude,
+                params.view.position.longitude,
+            ),
+            ray_params.direction.to_degrees(),
+        );
+
         Self {
             path_length: 0.0,
             ray_state: RayState {
@@ -143,8 +151,8 @@ impl<'a, 'b> PathIterator<'a, 'b> {
                 h: alt,
                 dh: 0.0,
             },
-            azimuth: ray_params.direction,
             ray,
+            dist_calc,
             params,
             terrain,
         }
@@ -156,14 +164,7 @@ impl<'a, 'b> PathIterator<'a, 'b> {
             elev: self.ray_state.h,
             path_length: self.path_length,
         };
-        let (lat, lon) = self.params.model.get_coords_at_dist(
-            (
-                self.params.view.position.latitude,
-                self.params.view.position.longitude,
-            ),
-            self.azimuth.to_degrees(),
-            elem.dist,
-        );
+        let (lat, lon) = self.dist_calc.coords_at_dist(elem.dist);
         let terrain_data = TerrainData::from_lat_lon(lat, lon, self.params, self.terrain);
         (terrain_data, elem)
     }

@@ -1,3 +1,8 @@
+mod directional_calc;
+
+pub use directional_calc::DirectionalCalc;
+use directional_calc::{AzEqCalc, FlDsCalc, SphericalCalc};
+
 use atm_refraction::EarthShape;
 use nalgebra::Vector3;
 use serde_derive::{Deserialize, Serialize};
@@ -65,7 +70,7 @@ impl EarthModel {
         }
     }
 
-    pub fn get_coords_at_dist(&self, start: (f64, f64), dir: f64, dist: f64) -> (f64, f64) {
+    pub fn coords_at_dist_calc(&self, start: (f64, f64), dir: f64) -> Box<dyn DirectionalCalc> {
         match self {
             EarthModel::AzimuthalEquidistant => {
                 let pos = self.as_cartesian(&Coords {
@@ -75,40 +80,11 @@ impl EarthModel {
                 });
                 let (vec_n, vec_e, _) = self.world_directions(start.0, start.1);
                 let dir_v = vec_n * dir.to_radians().cos() + vec_e * dir.to_radians().sin();
-                let pos2 = pos + dir_v * dist;
-                let lon = pos2.y.atan2(pos2.x).to_degrees();
-                let r = (pos2.x * pos2.x + pos2.y * pos2.y).sqrt();
-                let lat = 90.0 - r / DEGREE_DISTANCE;
-                (lat, lon)
+                Box::new(AzEqCalc::new(dir_v, pos))
             }
-            EarthModel::FlatDistorted => {
-                let d_lat = dir.to_radians().cos() * dist / DEGREE_DISTANCE;
-                let d_lon =
-                    dir.to_radians().sin() * dist / DEGREE_DISTANCE / start.0.to_radians().cos();
-                (start.0 + d_lat, start.1 + d_lon)
-            }
+            EarthModel::FlatDistorted => Box::new(FlDsCalc::new(start, dir)),
             EarthModel::FlatSpherical { radius } | EarthModel::Spherical { radius } => {
-                let ang = dist / radius;
-
-                let (dirn, dire, pos) = spherical_directions(start.0, start.1);
-
-                // vector tangent to Earth's surface in the given direction
-                let dir_rad = dir.to_radians();
-                let sindir = dir_rad.sin();
-                let cosdir = dir_rad.cos();
-
-                let dir = dirn * cosdir + dire * sindir;
-
-                // final_pos = pos*cos(ang) + dir*sin(ang)
-                let sinang = ang.sin();
-                let cosang = ang.cos();
-
-                let fpos = pos * cosang + dir * sinang;
-
-                let final_lat_rad = fpos[2].asin();
-                let final_lon_rad = fpos[1].atan2(fpos[0]);
-
-                (final_lat_rad.to_degrees(), final_lon_rad.to_degrees())
+                Box::new(SphericalCalc::new(*radius, start, dir))
             }
         }
     }

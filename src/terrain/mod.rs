@@ -14,12 +14,12 @@ pub use self::tile::Tile;
 
 type TileObj = Box<dyn Tile + Send + Sync>;
 
-enum TerrainData {
+enum TerrainDataInner {
     Loaded(TileObj),
     Pending(PathBuf),
 }
 
-impl TerrainData {
+impl TerrainDataInner {
     fn read_tile(path: &PathBuf) -> Option<TileObj> {
         if let Ok(dted_obj) = read_dted(path) {
             return Some(Box::new(dted_obj));
@@ -28,24 +28,32 @@ impl TerrainData {
         }
         None
     }
+}
 
-    fn get_elev(&mut self, latitude: f64, longitude: f64) -> Option<f64> {
-        match self {
-            TerrainData::Loaded(data) => data.get_elev(latitude, longitude),
-            TerrainData::Pending(path) => {
-                println!("Lazy loading terrain file: {:?}", path);
-                let data = Self::read_tile(path)
-                    .unwrap_or_else(|| panic!("Couldn't read a terrain file {:?}", path));
-                let result = data.get_elev(latitude, longitude);
-                *self = TerrainData::Loaded(data);
-                result
-            }
+struct TerrainData(RwLock<TerrainDataInner>);
+
+impl TerrainData {
+    fn get_elev(&self, latitude: f64, longitude: f64) -> Option<f64> {
+        if let TerrainDataInner::Loaded(data) = &*self.0.read().unwrap() {
+            return data.get_elev(latitude, longitude);
         }
+
+        let mut inner = self.0.write().unwrap();
+        if let TerrainDataInner::Pending(path) = &*inner {
+            println!("Lazy loading terrain file: {:?}", path);
+            let data = TerrainDataInner::read_tile(path)
+                .unwrap_or_else(|| panic!("Couldn't read a terrain file {:?}", path));
+            let result = data.get_elev(latitude, longitude);
+            *inner = TerrainDataInner::Loaded(data);
+            return result;
+        }
+
+        unreachable!()
     }
 }
 
 pub struct Terrain {
-    data: HashMap<(i16, i16), RwLock<TerrainData>>,
+    data: HashMap<(i16, i16), TerrainData>,
 }
 
 impl Terrain {
@@ -82,9 +90,10 @@ impl Terrain {
         };
         let lat = f64::from(header.origin_lat) as i16;
         let lon = f64::from(header.origin_lon) as i16;
-        let _ = self
-            .data
-            .insert((lat, lon), RwLock::new(TerrainData::Pending(path)));
+        let _ = self.data.insert(
+            (lat, lon),
+            TerrainData(RwLock::new(TerrainDataInner::Pending(path))),
+        );
         true
     }
 
@@ -94,9 +103,10 @@ impl Terrain {
         } else {
             return false;
         };
-        let _ = self
-            .data
-            .insert((lat, lon), RwLock::new(TerrainData::Pending(path)));
+        let _ = self.data.insert(
+            (lat, lon),
+            TerrainData(RwLock::new(TerrainDataInner::Pending(path))),
+        );
         true
     }
 
@@ -112,6 +122,6 @@ impl Terrain {
         let lon = longitude.floor() as i16;
         self.data
             .get(&(lat, lon))
-            .and_then(|data| data.write().unwrap().get_elev(latitude, longitude))
+            .and_then(|data| data.get_elev(latitude, longitude))
     }
 }

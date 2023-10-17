@@ -15,10 +15,13 @@ use super::{PixelColor, TracePoint};
 pub fn find_normal(model: &EarthModel, lat: f64, lon: f64, terrain: &Terrain) -> Vector3<f64> {
     const DIFF: f64 = 15.0;
 
-    let p_north = model.get_coords_at_dist((lat, lon), 0.0, DIFF);
-    let p_south = model.get_coords_at_dist((lat, lon), 180.0, DIFF);
-    let p_east = model.get_coords_at_dist((lat, lon), 90.0, DIFF);
-    let p_west = model.get_coords_at_dist((lat, lon), 270.0, DIFF);
+    let ns_calc = model.coords_at_dist_calc((lat, lon), 0.0);
+    let ew_calc = model.coords_at_dist_calc((lat, lon), 90.0);
+
+    let p_north = ns_calc.coords_at_dist(DIFF);
+    let p_south = ns_calc.coords_at_dist(-DIFF);
+    let p_east = ew_calc.coords_at_dist(DIFF);
+    let p_west = ew_calc.coords_at_dist(-DIFF);
 
     let (dir_north, dir_east, dir_up) = model.world_directions(lat, lon);
 
@@ -174,16 +177,20 @@ pub fn gen_path_cache(params: &Params, terrain: &Terrain, ray_elev: f64) -> Vec<
 pub fn gen_terrain_cache(params: &Params, terrain: &Terrain, dir: f64) -> Vec<TerrainData> {
     let mut distance = 0.0;
 
-    let mut result = vec![];
+    let mut result = Vec::with_capacity(
+        (params.view.frame.max_distance / params.simulation_step).ceil() as usize,
+    );
+
+    let distance_calc = params.model.coords_at_dist_calc(
+        (
+            params.view.position.latitude,
+            params.view.position.longitude,
+        ),
+        dir,
+    );
+
     while distance < params.view.frame.max_distance {
-        let (lat, lon) = params.model.get_coords_at_dist(
-            (
-                params.view.position.latitude,
-                params.view.position.longitude,
-            ),
-            dir,
-            distance,
-        );
+        let (lat, lon) = distance_calc.coords_at_dist(distance);
         let terrain_data = TerrainData::from_lat_lon(lat, lon, params, terrain);
         result.push(terrain_data);
         distance += params.simulation_step;

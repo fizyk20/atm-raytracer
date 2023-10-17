@@ -212,7 +212,7 @@ fn num_decimals(x: f64) -> usize {
             return i;
         }
     }
-    return 10;
+    10
 }
 
 fn round_decimals<T: TickLike>(ticks: &[T]) -> usize {
@@ -297,7 +297,7 @@ fn draw_ticks(
                 tick.size as i32 + 5,
                 scale,
                 &font,
-                &format!("{}", tick.angle),
+                &tick.angle.to_string(),
             );
         }
     }
@@ -316,7 +316,7 @@ fn draw_ticks(
                 y as i32 - 7,
                 scale,
                 &font,
-                &format!("{}", tick.angle),
+                &tick.angle.to_string(),
             );
         }
     }
