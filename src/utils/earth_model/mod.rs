@@ -1,7 +1,7 @@
 mod directional_calc;
 
 pub use directional_calc::DirectionalCalc;
-use directional_calc::{AzEqCalc, FlDsCalc, SphericalCalc};
+use directional_calc::{AzEqCalc, EllipsoidCalc, FlDsCalc, SphericalCalc};
 
 use atm_refraction::EarthShape;
 use nalgebra::Vector3;
@@ -14,6 +14,7 @@ const DEGREE_DISTANCE: f64 = 10_000_000.0 / 90.0;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum EarthModel {
     Spherical { radius: f64 },
+    Ellipsoid { a: f64, b: f64 },
     AzimuthalEquidistant,
     FlatDistorted,
     FlatSpherical { radius: f64 },
@@ -40,7 +41,9 @@ impl EarthModel {
                     Vector3::new(0.0, 0.0, 1.0),
                 )
             }
-            EarthModel::Spherical { .. } => spherical_directions(lat, lon),
+            EarthModel::Spherical { .. } | EarthModel::Ellipsoid { .. } => {
+                spherical_directions(lat, lon)
+            }
         }
     }
 
@@ -48,6 +51,16 @@ impl EarthModel {
         match *self {
             EarthModel::Spherical { radius } => {
                 spherical_to_cartesian(radius + coords.elev, coords.lat, coords.lon)
+            }
+            EarthModel::Ellipsoid { a, b } => {
+                let e2 = 1.0 - (b * b) / (a * a);
+                let lat = coords.lat.to_radians();
+                let lon = coords.lon.to_radians();
+                let n = a / (1.0 - e2 * lat.sin().powi(2)).sqrt();
+                let x = (n + coords.elev) * lat.cos() * lon.cos();
+                let y = (n + coords.elev) * lat.cos() * lon.sin();
+                let z = (n * (1.0 - e2) + coords.elev) * lat.sin();
+                Vector3::new(x, y, z)
             }
             EarthModel::AzimuthalEquidistant
             | EarthModel::FlatDistorted
@@ -64,6 +77,9 @@ impl EarthModel {
     pub fn to_shape(self) -> EarthShape {
         match self {
             EarthModel::Spherical { radius } => EarthShape::Spherical { radius },
+            EarthModel::Ellipsoid { a, b } => EarthShape::Spherical {
+                radius: (2.0 * a + b) / 3.0,
+            },
             EarthModel::AzimuthalEquidistant
             | EarthModel::FlatDistorted
             | EarthModel::FlatSpherical { .. } => EarthShape::Flat,
@@ -86,6 +102,7 @@ impl EarthModel {
             EarthModel::FlatSpherical { radius } | EarthModel::Spherical { radius } => {
                 Box::new(SphericalCalc::new(*radius, start, dir))
             }
+            EarthModel::Ellipsoid { a, b } => Box::new(EllipsoidCalc::new(*a, *b, start, dir)),
         }
     }
 }

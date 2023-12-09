@@ -84,3 +84,102 @@ impl DirectionalCalc for SphericalCalc {
         (final_lat_rad.to_degrees(), final_lon_rad.to_degrees())
     }
 }
+
+pub struct EllipsoidCalc {
+    b: f64,
+    f: f64,
+    red_lat: f64,
+    lon: f64,
+    az1: f64,
+    alfa: f64,
+    sig1: f64,
+    cap_a: f64,
+    cap_b: f64,
+    cap_c: f64,
+}
+
+// Implementation according to https://www.ngs.noaa.gov/PUBS_LIB/inverse.pdf
+
+impl EllipsoidCalc {
+    pub fn new(a: f64, b: f64, start: (f64, f64), dir: f64) -> Self {
+        let lat = start.0.to_radians();
+        let lon = start.1.to_radians();
+        let az1 = dir.to_radians();
+
+        let f = (a - b) / a;
+
+        let red_lat = ((1.0 - f) * lat.tan()).atan();
+        let sig1 = (red_lat.tan() / az1.cos()).atan();
+        let alfa = (red_lat.cos() * az1.sin()).asin();
+
+        let u2 = alfa.cos().powi(2) * (a * a - b * b) / (b * b);
+
+        let cap_a = 1.0 + u2 / 256.0 * (64.0 + u2 * (-12.0 + 5.0 * u2));
+        let cap_b = u2 / 512.0 * (128.0 + u2 * (-64.0 + 37.0 * u2));
+        let cap_c = f / 16.0 * alfa.cos().powi(2) * (4.0 + f * (4.0 - 3.0 * alfa.cos().powi(2)));
+
+        Self {
+            b,
+            f,
+            red_lat,
+            lon,
+            az1,
+            alfa,
+            sig1,
+            cap_a,
+            cap_b,
+            cap_c,
+        }
+    }
+}
+
+const EPSILON: f64 = 1e-10; // corresponds to an accuracy of ~0.1 cm
+
+impl DirectionalCalc for EllipsoidCalc {
+    fn coords_at_dist(&self, dist: f64) -> (f64, f64) {
+        let mut sig = dist / self.b / self.cap_a;
+
+        loop {
+            let sigm = 2.0 * self.sig1 + sig;
+            let dsig = self.cap_b
+                * sig.sin()
+                * (sigm.cos() + self.cap_b / 4.0 * sig.cos() * (-1.0 + 2.0 * sigm.cos().powi(2)));
+            let new_sig = dist / self.b / self.cap_a + dsig;
+            let dsig = (new_sig - sig).abs();
+            sig = new_sig;
+            if dsig < EPSILON {
+                break;
+            }
+        }
+
+        let sigm = 2.0 * self.sig1 + sig;
+
+        let lat2 = ((self.red_lat.sin() * sig.cos()
+            + self.red_lat.cos() * sig.sin() * self.az1.cos())
+            / ((1.0 - self.f)
+                * (self.alfa.sin().powi(2)
+                    + (self.red_lat.sin() * sig.sin()
+                        - self.red_lat.cos() * sig.cos() * self.az1.cos())
+                    .powi(2))
+                .sqrt()))
+        .atan();
+
+        let lambda = (sig.sin() * self.az1.sin()
+            / (self.red_lat.cos() * sig.cos() - self.red_lat.sin() * sig.sin() * self.az1.cos()))
+        .atan();
+
+        let dl = lambda
+            - (1.0 - self.cap_c)
+                * self.f
+                * self.alfa.sin()
+                * (sig
+                    + self.cap_c
+                        * sig.sin()
+                        * (sigm.cos()
+                            + self.cap_c * sig.cos() * (-1.0 + 2.0 * sigm.cos().powi(2))));
+
+        let lon2 = self.lon + dl;
+
+        (lat2.to_degrees(), lon2.to_degrees())
+    }
+}
