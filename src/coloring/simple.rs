@@ -43,6 +43,14 @@ impl ColoringMethod for SimpleColors {
             hsv(h, s, v)
         }
     }
+
+    fn sky_color(&self) -> Rgb<u8> {
+        Rgb([28, 28, 28])
+    }
+
+    fn fog_color(&self) -> Rgb<u8> {
+        Rgb([160, 160, 160])
+    }
 }
 
 #[allow(clippy::many_single_char_names)]

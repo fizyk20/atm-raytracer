@@ -1,7 +1,7 @@
 use std::{env, fs::File, io::Read};
 
 use crate::{
-    coloring::{ColoringMethod, Shading, SimpleColors},
+    coloring::{ColorPalette, ColoringMethod, Shading, SimpleColors},
     object::{ConfObject, Object},
     terrain::Terrain,
     utils::EarthModel,
@@ -155,6 +155,8 @@ pub enum ConfColoring {
         light_zenith_angle: f64,
         #[serde(default)]
         light_dir: f64,
+        #[serde(default)]
+        palette: ColorPalette,
     },
 }
 
@@ -173,6 +175,7 @@ impl Default for ConfColoring {
             ambient_light: default_ambient_light(),
             light_zenith_angle: default_zenith_angle(),
             light_dir: 0.0,
+            palette: ColorPalette::default(),
         }
     }
 }
@@ -187,6 +190,7 @@ pub enum Coloring {
         water_level: f64,
         ambient_light: f64,
         light_dir: Vector3<f64>,
+        palette: ColorPalette,
     },
 }
 
@@ -207,6 +211,7 @@ impl ConfColoring {
                 ambient_light,
                 light_zenith_angle,
                 light_dir,
+                palette,
             } => {
                 let light_zenith_angle = light_zenith_angle.to_radians();
                 let light_dir = light_dir.to_radians();
@@ -223,6 +228,7 @@ impl ConfColoring {
                     water_level,
                     ambient_light,
                     light_dir,
+                    palette,
                 }
             }
         }
@@ -240,7 +246,8 @@ impl Coloring {
                 water_level,
                 ambient_light,
                 light_dir,
-            } => Box::new(Shading::new(water_level, ambient_light, light_dir)),
+                palette,
+            } => Box::new(Shading::new(water_level, ambient_light, light_dir, palette)),
         }
     }
 }

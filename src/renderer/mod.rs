@@ -386,9 +386,11 @@ pub fn draw_image(pixels: &[Vec<ResultPixel>], params: &Params) -> ImageBuffer<R
     let mut img = ImageBuffer::new(params.output.width as u32, params.output.height as u32);
     let coloring = params.view.coloring.coloring_method();
     let def_color = if params.view.fog_distance.is_some() {
-        Rgb([160, 160, 160])
+        coloring.fog_color()
+        //Rgb([160, 160, 160])
     } else {
-        Rgb([28, 28, 28])
+        coloring.sky_color()
+        //Rgb([28, 28, 28])
     };
     for (x, y, px) in img.enumerate_pixels_mut() {
         let mut result = Rgb([0, 0, 0]);
