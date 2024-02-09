@@ -10,7 +10,6 @@ use crate::object::Color;
 pub use fast::FastGenerator;
 pub use interpolating_rectilinear::InterpolatingRectilinearGenerator;
 pub use rectilinear::RectilinearGenerator;
-pub use utils::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResultPixel {
