@@ -178,10 +178,6 @@ impl Object {
                 let p1 = pos1 - obj_pos;
                 let p1sq = p1.dot(&p1);
 
-                if p1sq > 2.0 * (radius * radius + height * height) {
-                    return None;
-                }
-
                 let v = earth_model
                     .world_directions(self.position.lat, self.position.lon)
                     .2;
