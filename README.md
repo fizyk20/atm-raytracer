@@ -193,7 +193,7 @@ view:
 #     Spherical:
 #       radius: x (in meters)
 #   (calculates everything like on a globe)
-# * earth_shape: SimpleSpherical
+# * earth_shape: SimpleSphere
 #   (equivalent to Spherical with radius set to 6371 km)
 # * earth_shape: SimpleObserverAe
 #   (equivalent to ObserverAe with radius set to 6371 km)
