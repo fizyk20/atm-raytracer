@@ -59,6 +59,7 @@ pub fn run(matches: &ArgMatches<'_>) -> Result<(), String> {
     let env = Environment {
         shape: config.earth_shape.to_shape(),
         atmosphere,
+        wavelength: config.wavelength,
     };
 
     let mut ang: f64 = min_ang;

@@ -5,7 +5,7 @@ authors = ["Bartłomiej Kamiński <fizyk20@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-atm-refraction = "0.5"
+atm-refraction = "0.6"
 bincode = "1.2"
 clap = "2.0"
 dted = "0.2"

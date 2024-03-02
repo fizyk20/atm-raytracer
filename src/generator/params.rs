@@ -422,6 +422,8 @@ pub struct Config {
     pub(crate) atmosphere: AtmosphereDef,
     #[serde(default = "default_earth_shape")]
     pub(crate) earth_shape: EarthModel,
+    #[serde(default = "default_wavelength")]
+    pub(crate) wavelength: f64,
     #[serde(default)]
     straight_rays: bool,
     #[serde(default = "default_simulation_step")]
@@ -440,6 +442,10 @@ fn default_simulation_step() -> f64 {
     50.0
 }
 
+fn default_wavelength() -> f64 {
+    530e-9
+}
+
 impl Default for Config {
     fn default() -> Self {
         Config {
@@ -447,6 +453,7 @@ impl Default for Config {
             view: Default::default(),
             atmosphere: AtmosphereDef::us_76(),
             earth_shape: default_earth_shape(),
+            wavelength: default_wavelength(),
             straight_rays: false,
             simulation_step: default_simulation_step(),
             output: Default::default(),
@@ -480,6 +487,7 @@ impl Config {
             env: Environment {
                 shape: self.earth_shape.to_shape(),
                 atmosphere,
+                wavelength: self.wavelength,
             },
             straight_rays: self.straight_rays,
             simulation_step: self.simulation_step,
