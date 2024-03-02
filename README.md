@@ -118,8 +118,11 @@ scene:
                 # A cylinder has a radius and a height
                 radius: 3.0
                 height: 55.0
+        # Other shape options are:
+        # - Cone (with a radius and a height)
+        # - Frustum (with r1 - bottom radius, r2 - top radius, and height)
     # the opacity of the terrain - defaults to 1.0 if omitted, which means completely opaque terrain
-    # values less than 1.0 can be used to see what is being obscured by the terrain closer to the 
+    # values less than 1.0 can be used to see what is being obscured by the terrain closer to the
     # observer
     #terrain_alpha: 0.5
 
@@ -173,7 +176,7 @@ view:
             light_dir: 10.0
     # The characteristic distance of the fog. Light is attenuated by a factor of e every such
     # distance from the observer. If omitted, there is no fog (infinite distance).
-    fog_distance: 100000
+    # fog_distance: 100000
 
 # the shape of the simulated Earth
 # can be either of:
@@ -182,16 +185,33 @@ view:
 # * earth_shape: FlatDistorted
 #   (calculates light paths like on a flat surface, but distorts distances according to latitude)
 # * earth_shape:
-#     FlatSpherical:
-#       radius: x (in meters)
-#   (calculates light paths like on a flat surface, but distances like on the spherical model)
+#     ObserverAe:
+#       projection_radius: x (in meters)
+#   (calculates light paths like on a flat surface, but distances like on the spherical model with
+#    radius equal to projection_radius)
 # * earth_shape:
 #     Spherical:
 #       radius: x (in meters)
 #   (calculates everything like on a globe)
+# * earth_shape: SimpleSpherical
+#   (equivalent to Spherical with radius set to 6371 km)
+# * earth_shape: SimpleObserverAe
+#   (equivalent to ObserverAe with radius set to 6371 km)
+# * earth_shape:
+#     Ellipsoid:
+#       a: x (in meters)
+#       b: x (in meters)
+#   (models an ellipsoidal Earth with equatorial radius set to a, and polar radius set to b)
+# * earth_shape: Wgs84
+#   (equivalent to Ellipsoid, with a and b set to WGS84 values)
 earth_shape:
     Spherical:
         radius: 6371000
+
+# wavelength: the wavelength of light for which to calculate ray paths; longer wavelengths are
+# slightly less affected by refraction
+# the value is given in meters - default is 530e-9 (530 nm)
+# wavelength: 530e-9
 
 # straight_rays: if true, rays are just propagated along straight lines.
 # if false, actual light propagation equations are used
