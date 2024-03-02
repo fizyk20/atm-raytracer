@@ -11,17 +11,19 @@ use super::Coords;
 
 const DEGREE_DISTANCE: f64 = 10_000_000.0 / 90.0;
 
+const EARTH_R: f64 = 6371000.0;
 const WGS84_A: f64 = 6378137.0;
 const WGS84_B: f64 = 6356752.314245;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum EarthModel {
+    SimpleSphere,
     Spherical { radius: f64 },
     Ellipsoid { a: f64, b: f64 },
     Wgs84,
     AzimuthalEquidistant,
     FlatDistorted,
-    FlatSpherical { radius: f64 },
+    ObserverAe { proj_radius: f64 },
 }
 
 impl EarthModel {
@@ -33,7 +35,7 @@ impl EarthModel {
         match self {
             EarthModel::AzimuthalEquidistant
             | EarthModel::FlatDistorted
-            | EarthModel::FlatSpherical { .. } => {
+            | EarthModel::ObserverAe { .. } => {
                 let lon_rad = lon.to_radians();
 
                 let sinlon = lon_rad.sin();
@@ -45,9 +47,10 @@ impl EarthModel {
                     Vector3::new(0.0, 0.0, 1.0),
                 )
             }
-            EarthModel::Spherical { .. } | EarthModel::Ellipsoid { .. } | EarthModel::Wgs84 => {
-                spherical_directions(lat, lon)
-            }
+            EarthModel::SimpleSphere
+            | EarthModel::Spherical { .. }
+            | EarthModel::Ellipsoid { .. }
+            | EarthModel::Wgs84 => spherical_directions(lat, lon),
         }
     }
 
@@ -55,6 +58,9 @@ impl EarthModel {
         match *self {
             EarthModel::Spherical { radius } => {
                 spherical_to_cartesian(radius + coords.elev, coords.lat, coords.lon)
+            }
+            EarthModel::SimpleSphere => {
+                EarthModel::Spherical { radius: EARTH_R }.as_cartesian(coords)
             }
             EarthModel::Wgs84 => EarthModel::Ellipsoid {
                 a: WGS84_A,
@@ -73,7 +79,7 @@ impl EarthModel {
             }
             EarthModel::AzimuthalEquidistant
             | EarthModel::FlatDistorted
-            | EarthModel::FlatSpherical { .. } => {
+            | EarthModel::ObserverAe { .. } => {
                 let z = coords.elev;
                 let r = (90.0 - coords.lat) * DEGREE_DISTANCE;
                 let x = r * coords.lon.to_radians().cos();
@@ -85,6 +91,7 @@ impl EarthModel {
 
     pub fn to_shape(self) -> EarthShape {
         match self {
+            EarthModel::SimpleSphere => EarthShape::Spherical { radius: EARTH_R },
             EarthModel::Spherical { radius } => EarthShape::Spherical { radius },
             EarthModel::Wgs84 => EarthModel::Ellipsoid {
                 a: WGS84_A,
@@ -96,7 +103,7 @@ impl EarthModel {
             },
             EarthModel::AzimuthalEquidistant
             | EarthModel::FlatDistorted
-            | EarthModel::FlatSpherical { .. } => EarthShape::Flat,
+            | EarthModel::ObserverAe { .. } => EarthShape::Flat,
         }
     }
 
@@ -113,10 +120,14 @@ impl EarthModel {
                 Box::new(AzEqCalc::new(dir_v, pos))
             }
             EarthModel::FlatDistorted => Box::new(FlDsCalc::new(start, dir)),
-            EarthModel::FlatSpherical { radius } | EarthModel::Spherical { radius } => {
-                Box::new(SphericalCalc::new(*radius, start, dir))
+            EarthModel::ObserverAe {
+                proj_radius: radius,
             }
+            | EarthModel::Spherical { radius } => Box::new(SphericalCalc::new(*radius, start, dir)),
             EarthModel::Ellipsoid { a, b } => Box::new(EllipsoidCalc::new(*a, *b, start, dir)),
+            EarthModel::SimpleSphere => {
+                EarthModel::Spherical { radius: EARTH_R }.coords_at_dist_calc(start, dir)
+            }
             EarthModel::Wgs84 => EarthModel::Ellipsoid {
                 a: WGS84_A,
                 b: WGS84_B,
