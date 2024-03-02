@@ -2,7 +2,7 @@ use std::{env, fs::File, io::Read};
 
 use crate::{
     coloring::{ColorPalette, ColoringMethod, Shading, SimpleColors},
-    object::{ConfObject, Object},
+    object::{ConfObject, Object, SerializableObject},
     terrain::Terrain,
     utils::EarthModel,
 };
@@ -89,24 +89,56 @@ impl Default for ConfScene {
 
 impl ConfScene {
     fn into_scene(self, terrain: &Terrain) -> Scene {
-        let objects = self
+        let objects: Vec<_> = self
             .objects
             .into_iter()
-            .map(|obj| obj.into_object(terrain))
+            .map(|obj| obj.into_serializable_object(terrain))
+            .collect();
+        let callable_objects = objects
+            .iter()
+            .map(SerializableObject::into_object)
             .collect();
         Scene {
             terrain_folder: self.terrain_folder,
             objects,
+            callable_objects,
             terrain_alpha: self.terrain_alpha,
         }
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Scene {
     pub terrain_folder: String,
-    pub objects: Vec<Object>,
+    objects: Vec<SerializableObject>,
+    #[serde(skip)]
+    callable_objects: Vec<Box<dyn Object + Sync>>,
     pub terrain_alpha: f64,
+}
+
+impl Clone for Scene {
+    fn clone(&self) -> Self {
+        Self {
+            terrain_folder: self.terrain_folder.clone(),
+            objects: self.objects.clone(),
+            callable_objects: self
+                .objects
+                .iter()
+                .map(SerializableObject::into_object)
+                .collect(),
+            terrain_alpha: self.terrain_alpha,
+        }
+    }
+}
+
+impl Scene {
+    pub fn objects(&self) -> &[Box<dyn Object + Sync>] {
+        &self.callable_objects
+    }
+
+    pub fn objects_iter(&self) -> impl Iterator<Item = &'_ Box<dyn Object + Sync>> {
+        self.callable_objects.iter()
+    }
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]

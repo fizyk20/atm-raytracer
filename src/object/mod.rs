@@ -1,3 +1,6 @@
+mod billboard;
+mod frustum;
+
 use std::env;
 
 use crate::{
@@ -8,11 +11,24 @@ use crate::{
 
 use image::{open, DynamicImage, GenericImageView, Rgba};
 use nalgebra::Vector3;
+use serde::{Deserialize, Serialize};
+
+use billboard::Billboard;
+use frustum::Frustum;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum ConfShape {
     Cylinder {
         radius: f64,
+        height: f64,
+    },
+    Cone {
+        radius: f64,
+        height: f64,
+    },
+    Frustum {
+        r1: f64,
+        r2: f64,
         height: f64,
     },
     Billboard {
@@ -25,7 +41,17 @@ pub enum ConfShape {
 impl ConfShape {
     pub fn into_shape(self) -> Shape {
         match self {
-            ConfShape::Cylinder { radius, height } => Shape::Cylinder { radius, height },
+            ConfShape::Cylinder { radius, height } => Shape::Frustum {
+                r1: radius,
+                r2: radius,
+                height,
+            },
+            ConfShape::Cone { radius, height } => Shape::Frustum {
+                r1: radius,
+                r2: 0.0,
+                height,
+            },
+            ConfShape::Frustum { r1, r2, height } => Shape::Frustum { r1, r2, height },
             ConfShape::Billboard {
                 width,
                 height,
@@ -93,8 +119,9 @@ impl Image {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Shape {
-    Cylinder {
-        radius: f64,
+    Frustum {
+        r1: f64,
+        r2: f64,
         height: f64,
     },
     Billboard {
@@ -136,7 +163,7 @@ pub struct ConfObject {
 }
 
 impl ConfObject {
-    pub fn into_object(self, terrain: &Terrain) -> Object {
+    pub fn into_serializable_object(self, terrain: &Terrain) -> SerializableObject {
         let position = Coords {
             lat: self.position.latitude,
             lon: self.position.longitude,
@@ -147,7 +174,8 @@ impl ConfObject {
             ),
         };
         let shape = self.shape.into_shape();
-        Object {
+
+        SerializableObject {
             position,
             shape,
             color: self.color,
@@ -156,137 +184,43 @@ impl ConfObject {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct Object {
-    pub position: Coords,
-    pub shape: Shape,
-    pub color: Color,
+pub struct SerializableObject {
+    position: Coords,
+    shape: Shape,
+    color: Color,
 }
 
-impl Object {
-    #[allow(clippy::many_single_char_names)]
-    pub fn check_collision(
-        &self,
-        earth_model: &EarthModel,
-        point1: Coords,
-        point2: Coords,
-    ) -> Option<(f64, Vector3<f64>, Color)> {
-        let pos1 = earth_model.as_cartesian(&point1);
-        let pos2 = earth_model.as_cartesian(&point2);
-        let obj_pos = earth_model.as_cartesian(&self.position);
+impl SerializableObject {
+    pub fn into_object(&self) -> Box<dyn Object + Sync> {
         match self.shape {
-            Shape::Cylinder { radius, height } => {
-                let p1 = pos1 - obj_pos;
-                let p1sq = p1.dot(&p1);
-
-                let v = earth_model
-                    .world_directions(self.position.lat, self.position.lon)
-                    .2;
-
-                let w = pos2 - pos1;
-
-                let wsq = w.dot(&w);
-                let p1v = p1.dot(&v);
-                let p1w = p1.dot(&w);
-                let wv = w.dot(&v);
-
-                let a = wsq - wv * wv;
-                let b = 2.0 * (p1w - p1v * wv);
-                let c = p1sq - p1v * p1v - radius * radius;
-
-                let delta = b * b - 4.0 * a * c;
-
-                if delta < 0.0 {
-                    None
-                } else {
-                    let x1 = (-b - delta.sqrt()) / 2.0 / a;
-                    let x2 = (-b + delta.sqrt()) / 2.0 / a;
-
-                    let x = if x1 < x2 { x1 } else { x2 };
-
-                    if !(0.0..1.0).contains(&x) {
-                        return None;
-                    }
-
-                    let intersection = p1 + w * x;
-
-                    let h = intersection.dot(&v);
-
-                    if !(0.0..height).contains(&h) {
-                        return None;
-                    }
-
-                    let normal = intersection - h * v;
-
-                    let n_len = normal.dot(&normal).sqrt();
-                    let normal = normal / n_len;
-
-                    Some((x, normal, self.color))
-                }
-            }
+            Shape::Frustum { r1, r2, height } => Box::new(Frustum {
+                r1,
+                r2,
+                height,
+                position: self.position,
+                color: self.color,
+            }),
             Shape::Billboard {
                 width,
                 height,
                 ref texture,
-            } => {
-                let ray = pos2 - pos1;
-                let up = earth_model
-                    .world_directions(self.position.lat, self.position.lon)
-                    .2;
-                let right = ray.cross(&up);
-                let right_len = right.dot(&right).sqrt();
-                let right = right / right_len;
-                let front = right.cross(&up);
-
-                let p1 = pos1 - obj_pos;
-
-                let prop = -p1.dot(&front) / ray.dot(&front);
-
-                if !(0.0..1.0).contains(&prop) {
-                    // intersection outside of the current interval
-                    return None;
-                }
-
-                let intersection = p1 + ray * prop;
-                let y = intersection.dot(&up);
-                let x = intersection.dot(&right);
-
-                if !(0.0..height).contains(&y) || !(-width / 2.0..width / 2.0).contains(&x) {
-                    // intersection outside of the rectangle
-                    return None;
-                }
-
-                let x = (x + width / 2.0) / width;
-                let y = y / height;
-                let pixel = texture.get_pixel(x, y);
-
-                let color = Color {
-                    r: pixel.0[0] as f64 / 255.0,
-                    g: pixel.0[1] as f64 / 255.0,
-                    b: pixel.0[2] as f64 / 255.0,
-                    a: pixel.0[3] as f64 / 255.0,
-                };
-
-                Some((prop, front, color))
-            }
+            } => Box::new(Billboard {
+                width,
+                height,
+                texture: texture.clone(),
+                position: self.position,
+            }),
         }
     }
+}
 
-    pub fn is_close(&self, earth_model: &EarthModel, sim_step: f64, lat: f64, lon: f64) -> bool {
-        let obj_pos = earth_model.as_cartesian(&self.position);
-        let pos = earth_model.as_cartesian(&Coords {
-            lat,
-            lon,
-            elev: self.position.elev,
-        });
-        let dist_v = pos - obj_pos;
+pub trait Object {
+    fn check_collision(
+        &self,
+        earth_model: &EarthModel,
+        point1: Coords,
+        point2: Coords,
+    ) -> Vec<(f64, Vector3<f64>, Color)>;
 
-        match self.shape {
-            Shape::Cylinder { radius, .. } => {
-                dist_v.dot(&dist_v) < 2.0 * (radius + sim_step) * (radius + sim_step)
-            }
-            Shape::Billboard { width, .. } => {
-                dist_v.dot(&dist_v) < 2.0 * (width + sim_step) * (width + sim_step)
-            }
-        }
-    }
+    fn is_close(&self, earth_model: &EarthModel, sim_step: f64, lat: f64, lon: f64) -> bool;
 }

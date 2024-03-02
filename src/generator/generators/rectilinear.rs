@@ -103,7 +103,7 @@ impl<'a, 'b> RectilinearGenerator<'a, 'b> {
         let path_iterator = PathIterator::new(self.params, self.terrain, ray_params);
         let trace_points = get_single_pixel(
             path_iterator,
-            &self.params.scene.objects,
+            self.params.scene.objects(),
             &self.params.model,
             self.params.scene.terrain_alpha,
         );

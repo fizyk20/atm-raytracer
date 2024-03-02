@@ -60,7 +60,7 @@ impl<'a, 'b> Generator for FastGenerator<'a, 'b> {
                                 .iter()
                                 .cloned()
                                 .zip(path_cache[y as usize].iter().copied()),
-                            &self.params.scene.objects,
+                            self.params.scene.objects(),
                             &self.params.model,
                             self.params.scene.terrain_alpha,
                         );

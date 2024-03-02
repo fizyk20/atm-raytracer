@@ -73,8 +73,7 @@ impl TerrainData {
         let normal = find_normal(&params.model, lat, lon, terrain);
         let objects_close = params
             .scene
-            .objects
-            .iter()
+            .objects_iter()
             .enumerate()
             .filter(|(_, obj)| obj.is_close(&params.model, params.simulation_step, lat, lon))
             .map(|(index, _)| index)
@@ -201,7 +200,7 @@ pub fn gen_terrain_cache(params: &Params, terrain: &Terrain, dir: f64) -> Vec<Te
 
 pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
     mut terrain_and_path: I,
-    objects: &[Object],
+    objects: &[Box<dyn Object + Sync>],
     earth_model: &EarthModel,
     terrain_alpha: f64,
 ) -> Vec<TracePoint> {
@@ -251,7 +250,7 @@ pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
                 .collect();
             for object_index in object_indices {
                 let object = &objects[object_index];
-                if let Some((prop, normal, color)) = object.check_collision(
+                for (prop, normal, color) in object.check_collision(
                     earth_model,
                     old_tracing_state.ray_coords(),
                     new_tracing_state.ray_coords(),
@@ -274,6 +273,7 @@ pub fn get_single_pixel<I: Iterator<Item = (TerrainData, PathElem)>>(
                     ));
                     if color.a == 1.0 {
                         finish = true;
+                        break;
                     }
                 }
             }
