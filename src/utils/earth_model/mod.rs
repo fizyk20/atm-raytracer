@@ -24,6 +24,7 @@ pub enum EarthModel {
     AzimuthalEquidistant,
     FlatDistorted,
     ObserverAe { proj_radius: f64 },
+    SimpleObserverAe,
 }
 
 impl EarthModel {
@@ -35,6 +36,7 @@ impl EarthModel {
         match self {
             EarthModel::AzimuthalEquidistant
             | EarthModel::FlatDistorted
+            | EarthModel::SimpleObserverAe
             | EarthModel::ObserverAe { .. } => {
                 let lon_rad = lon.to_radians();
 
@@ -79,6 +81,7 @@ impl EarthModel {
             }
             EarthModel::AzimuthalEquidistant
             | EarthModel::FlatDistorted
+            | EarthModel::SimpleObserverAe
             | EarthModel::ObserverAe { .. } => {
                 let z = coords.elev;
                 let r = (90.0 - coords.lat) * DEGREE_DISTANCE;
@@ -103,6 +106,7 @@ impl EarthModel {
             },
             EarthModel::AzimuthalEquidistant
             | EarthModel::FlatDistorted
+            | EarthModel::SimpleObserverAe
             | EarthModel::ObserverAe { .. } => EarthShape::Flat,
         }
     }
@@ -131,6 +135,10 @@ impl EarthModel {
             EarthModel::Wgs84 => EarthModel::Ellipsoid {
                 a: WGS84_A,
                 b: WGS84_B,
+            }
+            .coords_at_dist_calc(start, dir),
+            EarthModel::SimpleObserverAe => EarthModel::ObserverAe {
+                proj_radius: EARTH_R,
             }
             .coords_at_dist_calc(start, dir),
         }
